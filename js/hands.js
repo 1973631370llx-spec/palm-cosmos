@@ -121,7 +121,9 @@ export class HandTracker {
     const wasmSources = cdn
       ? [`${CONFIG.hand.cdnWasm}/vision_wasm_internal.wasm`, localWasm + suffix]
       : [localWasm + suffix, localWasm];
-    const taskSources = cdn ? [CONFIG.hand.cdnModel, localTask + suffix] : [localTask + suffix, localTask];
+    const taskSources = cdn
+      ? [CONFIG.hand.cdnModel, CONFIG.hand.cdnModelAlt + suffix, localTask + suffix]
+      : [localTask + suffix, localTask];
     const estimate = (url, raw) => (suffix && url.endsWith(suffix) ? raw * 0.34 : raw);
 
     const decode = async (packed, bytes) => {

@@ -113,6 +113,8 @@ export const CONFIG = {
     cdnWasm: 'https://registry.npmmirror.com/@mediapipe/tasks-vision/0.10.35/files/wasm',
     cdnModel:
       'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+    // 模型备胎：Google 源在国内常被墙，备一条 GitHub 加速通道
+    cdnModelAlt: 'https://ghfast.top/https://raw.githubusercontent.com/1973631370llx-spec/palm-cosmos/main/vendor/mediapipe/hand_landmarker.task',
     preload: true,          // 首屏后预载模型（有进度条，点开始时已经就绪）
     // 双手
     dualScale: 0.74,        // 双手时每团星系的缩放
