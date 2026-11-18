@@ -1,0 +1,24 @@
+import { launch, screenshot } from './cdp.mjs';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const url = process.argv[2] || 'http://127.0.0.1:4174/?demo=1';
+const gpu = process.argv.includes('--gpu');
+const b = await launch({ port: 9448, headless: true, extraArgs: gpu ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] : [] });
+const { cdp } = b;
+const errs = [];
+await cdp.send('Page.enable');
+await cdp.send('Runtime.enable');
+await cdp.send('Log.enable');
+cdp.on('Runtime.exceptionThrown', (p) => errs.push('EXC ' + (p.exceptionDetails?.exception?.description || p.exceptionDetails?.text)));
+cdp.on('Log.entryAdded', (p) => errs.push('LOG ' + p.entry.level + ' ' + p.entry.text));
+await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1.5, mobile: false });
+const t0 = Date.now();
+await cdp.send('Page.navigate', { url });
+await cdp.waitFor('window.PALM_COSMOS && window.PALM_COSMOS.state.booted', { timeout: 40000, interval: 100 });
+const boot = Date.now() - t0;
+await sleep(4000);
+console.log('BOOT_MS', boot, 'ERRS', errs.slice(0, 5));
+console.log('STATS', await cdp.eval('JSON.stringify(PALM_COSMOS.stats())'));
+console.log('TIME', await cdp.eval('JSON.stringify({fps:PALM_COSMOS.state.fps,time:PALM_COSMOS.state.time,phase:PALM_COSMOS.state.phase,collapse:PALM_COSMOS.state.collapse,flash:PALM_COSMOS.state.flash,demo:PALM_COSMOS.demo.phase})'));
+await screenshot(cdp, 'shots/perf.png');
+await b.close();

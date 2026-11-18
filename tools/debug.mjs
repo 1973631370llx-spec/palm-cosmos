@@ -1,0 +1,22 @@
+import { launch, screenshot } from './cdp.mjs';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const extra = process.argv.slice(2);
+const b = await launch({ port: 9446, extraArgs: extra });
+const { cdp } = b;
+const errs = [];
+await cdp.send('Page.enable');
+await cdp.send('Runtime.enable');
+await cdp.send('Log.enable');
+cdp.on('Runtime.exceptionThrown', (p) => errs.push('EXC ' + (p.exceptionDetails?.exception?.description || p.exceptionDetails?.text)));
+cdp.on('Log.entryAdded', (p) => errs.push('LOG ' + p.entry.level + ' ' + p.entry.text));
+cdp.on('Runtime.consoleAPICalled', (p) => errs.push('CON ' + p.type + ' ' + p.args.map((a) => a.value ?? a.description ?? '').join(' ')));
+await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1.5, mobile: false });
+await cdp.send('Page.navigate', { url: 'http://127.0.0.1:4173/?demo=1' });
+await sleep(6000);
+console.log('ERRS', JSON.stringify(errs.slice(0, 30), null, 1));
+console.log('HAS', await cdp.eval('typeof window.PALM_COSMOS'));
+console.log('STATE', await cdp.eval('window.PALM_COSMOS ? JSON.stringify({booted:PALM_COSMOS.state.booted, time:PALM_COSMOS.state.time, mode:PALM_COSMOS.state.mode, fps:PALM_COSMOS.state.fps}) : "none"'));
+console.log('GATE', await cdp.eval('document.getElementById("gate") ? document.getElementById("gate").className : "no gate"'));
+await screenshot(cdp, 'shots/debug.png');
+await b.close();

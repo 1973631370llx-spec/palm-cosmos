@@ -1,0 +1,9 @@
+# 自测产物 / 日志 / 隧道输出不进仓库
+shots/
+*.log
+tunnel.log
+
+# 系统垃圾
+Thumbs.db
+.DS_Store
+node_modules/
