@@ -31,7 +31,7 @@ await cdp.waitFor('window.PALM_COSMOS && window.PALM_COSMOS.state.booted', { tim
 await cdp.eval(`document.getElementById('btnCamera').click()`);
 const started = await cdp
   .waitFor(`window.PALM_COSMOS.state.mode === 'hand' || document.getElementById('camLabel').textContent.includes('OFFLINE')`, {
-    timeout: 45000,
+    timeout: 120000,
     interval: 150,
   })
   .then(() => true)

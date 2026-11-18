@@ -12,21 +12,34 @@
 
 ---
 
-## 分享给别人（一条公网 HTTPS 链接）
+## 分享给别人（固定公网地址）
+
+# https://1973631370llx-spec.github.io/palm-cosmos/
+
+- GitHub Pages 托管，**域名固定**，不用开电脑、不限人数
+- 手机（iPhone / 安卓）、电脑、平板直接打开；二维码在 `shots/share-qr.png`
+- 摄像头需要 HTTPS：这个地址是 HTTPS，满足条件；首次打开浏览器会问「允许使用摄像头」
+- 首次打开要下载 wasm（11 MB）+ 手部模型（7.8 MB），约 20–30 秒，期间右下角有加载提示；第二次打开走浏览器缓存，几秒就好
+- 微信内置浏览器可能拦摄像头 → 点右上角「在浏览器中打开」
+
+更新内容后重新发布（改完文件执行）：
+
+```bash
+cd palm-cosmos
+git add -A && git commit -m "update" && git push
+```
+
+Pages 会在一两分钟内自动重建。
+
+### 临时分享（不等上传、随时可换）
 
 ```powershell
-cd palm-cosmos
 powershell -ExecutionPolicy Bypass -File tools\share.ps1
 ```
 
-脚本会：起本地服务 → 起 Cloudflare 隧道（`cloudflared`，无需账号）→ 打印一条 `https://xxx.trycloudflare.com` 网址 → 生成二维码到 `shots/share-qr.png`。
+起本地服务 + Cloudflare 隧道，打印一条 `https://xxx.trycloudflare.com` 临时链接和二维码。缺点：关电脑就失效，重启换新地址。
 
-- 手机、电脑直接打开，**扫码也行**；摄像头只要求 HTTPS，这个地址满足
-- 第一次打开要下载手部模型（约 8MB），页面右下角会显示进度提示；之后浏览器缓存，秒开
-- 关掉电脑或隧道进程，网址就失效；重新运行脚本会拿到**新的**网址
-- 只在自己电脑上试：`node server.mjs` → `http://127.0.0.1:4173/`（离线、不联网）
-
-> 隧道地址走的是这台机器的上行带宽，几个人同时打开会互相抢带宽。要长期稳定，建议传到任意静态托管（Cloudflare Pages / Netlify / Vercel / GitHub Pages），整个目录直接上传即可，无需构建。
+> 想要 `palm-cosmos.com` 这种自己的域名，需要买一个域名（几十块/年）再 CNAME 到 `1973631370llx-spec.github.io`；域名和备案都得你自己操作，我可以把 DNS 记录和 Pages 自定义域名的配置写好给你。
 
 ---
 
