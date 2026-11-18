@@ -94,18 +94,21 @@ export class HandTracker {
   }
 
   /** 预载 wasm + 模型字节：下载一次就留在内存里，点开始直接喂给 MediaPipe。
-   * 优先下预压缩版（10.6MB → 3.1MB，7.5MB → 5.5MB），浏览器解压后再交给 MediaPipe。 */
+   * 公网走镜像（阿里 npm 镜像 + Google 模型源，实测 3–6MB/s）；本机走 vendor/ + 本地 gzip。 */
   preload(onProgress) {
     if (this._assets?.task) return Promise.resolve(true);
     if (this._preloadPromise) return this._preloadPromise;
     this._preloadCtl = new AbortController();
     const signal = this._preloadCtl.signal;
-    const base = [
-      new URL('../vendor/mediapipe/wasm/vision_wasm_internal.wasm', import.meta.url).href,
-      new URL('../vendor/mediapipe/hand_landmarker.task', import.meta.url).href,
-    ];
-    // 能解压就下 .gz（Safari 16.4+ / Chrome 全支持）；不行就下原件
-    const codec = (() => {
+    const cdn = CONFIG.hand.useCdn;
+    const base = cdn
+      ? [`${CONFIG.hand.cdnWasm}/vision_wasm_internal.wasm`, CONFIG.hand.cdnModel]
+      : [
+          new URL('../vendor/mediapipe/wasm/vision_wasm_internal.wasm', import.meta.url).href,
+          new URL('../vendor/mediapipe/hand_landmarker.task', import.meta.url).href,
+        ];
+    // 本地能解压就下 .gz（Safari 16.4+ / Chrome 全支持）；CDN 自带压缩，直接下原件
+    const codec = !cdn && (() => {
       for (const c of ['brotli', 'gzip']) {
         try {
           new DecompressionStream(c);
@@ -257,37 +260,61 @@ export class HandTracker {
     }
   }
 
-  async _startMainThread() {
-    const vision = await import('../vendor/mediapipe/vision_bundle.mjs');
-    const cdn = CONFIG.hand.useCdn;
-    const basePath = cdn ? CONFIG.hand.cdnWasm : new URL('../vendor/mediapipe/wasm', import.meta.url).href;
-    const fileset = await vision.FilesetResolver.forVisionTasks(basePath);
-    const modelPath = cdn
-      ? CONFIG.hand.cdnModel
-      : new URL('../vendor/mediapipe/hand_landmarker.task', import.meta.url).href;
-    this.source = cdn ? 'cdn' : 'local';
-    // 预载过了就直接用内存里的字节：省掉一次 8–12MB 的下载
-    if (this._assets?.wasmUrl && !cdn) fileset.wasmBinaryPath = this._assets.wasmUrl;
+  /** 载入 MediaPipe 运行库：公网先试镜像，失败退回本地 vendor/。 */
+  async _loadVision() {
+    if (CONFIG.hand.useCdn) {
+      try {
+        return await import(CONFIG.hand.visionBundle);
+      } catch (err) {
+        this.fallbackReason = 'vision cdn';
+      }
+    }
+    return import('../vendor/mediapipe/vision_bundle.mjs');
+  }
 
-    const opts = (delegate) => ({
-      baseOptions: {
-        delegate,
-        ...(this._assets?.task ? { modelAssetBuffer: this._assets.task } : { modelAssetPath: modelPath }),
-      },
-      runningMode: 'VIDEO',
-      numHands: 2,
-      minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence: 0.5,
-      minTrackingConfidence: 0.4,
-    });
+  async _startMainThread() {
+    const vision = await this._loadVision();
+    const cdn = CONFIG.hand.useCdn && vision !== undefined;
+    this.source = cdn ? 'cdn' : 'local';
+
+    const build = async (useCdn) => {
+      const basePath = useCdn ? CONFIG.hand.cdnWasm : new URL('../vendor/mediapipe/wasm', import.meta.url).href;
+      const fileset = await vision.FilesetResolver.forVisionTasks(basePath);
+      const modelPath = useCdn
+        ? CONFIG.hand.cdnModel
+        : new URL('../vendor/mediapipe/hand_landmarker.task', import.meta.url).href;
+      // 预载过了就直接用内存里的字节：省掉一次 8–12MB 的下载
+      if (this._assets?.wasmUrl) fileset.wasmBinaryPath = this._assets.wasmUrl;
+      const opts = (delegate) => ({
+        baseOptions: {
+          delegate,
+          ...(this._assets?.task ? { modelAssetBuffer: this._assets.task } : { modelAssetPath: modelPath }),
+        },
+        runningMode: 'VIDEO',
+        numHands: 2,
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
+        minTrackingConfidence: 0.4,
+      });
+      try {
+        this.landmarker = await vision.HandLandmarker.createFromOptions(fileset, opts('GPU'));
+        this.delegate = 'GPU';
+      } catch (err) {
+        this.landmarker = await vision.HandLandmarker.createFromOptions(fileset, opts('CPU'));
+        this.delegate = 'CPU';
+      }
+    };
 
     try {
-      this.landmarker = await vision.HandLandmarker.createFromOptions(fileset, opts('GPU'));
-      this.delegate = 'GPU';
+      await build(cdn);
     } catch (err) {
-      this.landmarker = await vision.HandLandmarker.createFromOptions(fileset, opts('CPU'));
-      this.delegate = 'CPU';
+      if (!cdn) throw err;
+      // 镜像挂了：退回本地 vendor/（慢，但一定能开）
+      this.fallbackReason = 'asset cdn';
+      this.source = 'local-fallback';
+      await build(false);
     }
+
     this.mode = 'main';
     if (this.delegate !== 'GPU' && CONFIG.hand.useWorker) {
       const moved = await this._startWorker();

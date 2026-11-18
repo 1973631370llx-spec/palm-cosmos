@@ -7,7 +7,7 @@ await cdp.send('Runtime.enable'); await cdp.send('Page.enable');
 await cdp.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:3,mobile:true});
 await cdp.send('Emulation.setUserAgentOverride',{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1'});
 const t0=Date.now();
-await cdp.send('Page.navigate',{url:BASE+'/?debug=1'});
+const u=new URL(BASE+'/'); u.searchParams.set('debug','1'); await cdp.send('Page.navigate',{url:u.href});
 await cdp.waitFor('window.PALM_COSMOS && PALM_COSMOS.state.booted',{timeout:60000});
 console.log('booted ms', Date.now()-t0);
 let last='';
@@ -21,3 +21,4 @@ const t1=Date.now();
 const ok=await cdp.eval("PALM_COSMOS.startCamera()");
 console.log('start ok=',ok,'ms=',Date.now()-t1,'mode=',await cdp.eval("PALM_COSMOS.state.mode"),'delegate=',await cdp.eval("PALM_COSMOS.tracker().delegate"),'err=',await cdp.eval("PALM_COSMOS.state.cameraError||''"));
 await b.close();
+

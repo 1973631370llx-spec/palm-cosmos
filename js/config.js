@@ -17,8 +17,8 @@ const IS_LOCAL =
   ['127.0.0.1', 'localhost', '::1', '[::1]', ''].includes(location.hostname) ||
   location.protocol === 'file:';
 
-/* 默认用本地 vendor/（离线可用、国内网络也稳）；?cdn=1 切到 CDN 公共库（首次加载更快）。 */
-const USE_CDN = PARAMS.get('cdn') === '1';
+/* 默认用本地 vendor/（离线可用）；公网托管时自动走快速镜像，?cdn=0 可强制本地、?cdn=1 强制镜像。 */
+const USE_CDN = PARAMS.get('cdn') === '1' || (PARAMS.get('cdn') !== '0' && !IS_LOCAL);
 
 // QA：?count=8000 强制粒子数（1000–16000）
 const FORCED_COUNT = (() => {
@@ -106,9 +106,11 @@ export const CONFIG = {
     workerDelegate: 'CPU',  // Worker 内识别用的 delegate（CPU：不占主线程）
     useWorker: true,        // GPU 不可用时把 CPU 识别挪到 Worker
     watchdogMs: 2500,       // Worker 首帧无响应 → 切回主线程
-    // 资源地址：本机用 vendor/（完全离线），公网分享自动走 CDN（快 5–10 倍）
+    // 资源地址：本机用 vendor/（完全离线）；公网默认走国内快的镜像（实测 GitHub 只有 8–35KB/s，
+    // 阿里 npm 镜像 2.7–6.2MB/s、Google 模型源 5.6MB/s）。失败会自动退回本地 vendor/。
     useCdn: USE_CDN,
-    cdnWasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm',
+    visionBundle: 'https://registry.npmmirror.com/@mediapipe/tasks-vision/0.10.35/files/vision_bundle.mjs',
+    cdnWasm: 'https://registry.npmmirror.com/@mediapipe/tasks-vision/0.10.35/files/wasm',
     cdnModel:
       'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
     preload: true,          // 首屏后预载模型（有进度条，点开始时已经就绪）
