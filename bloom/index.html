@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#060509" />
+<title>指尖生花 / BLOOM AT YOUR FINGERTIPS</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="./styles/main.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<main id="app">
+  <canvas id="stage" aria-hidden="true"></canvas>
+  <canvas id="debug" aria-hidden="true" hidden></canvas>
+  <!-- 手部骨架：认到的 21 个点画成细线和小点，叠在画面上 -->
+  <canvas id="hand-skel" aria-hidden="true"></canvas>
+
+  <!-- 摄像头：隐藏播放，playsinline + muted，画面只在本地当背景纹理 -->
+  <video id="cam" class="cam" playsinline muted autoplay aria-hidden="true"></video>
+
+  <!-- ── HUD：四角细线等宽小字 ───────────────────────────── -->
+  <div id="hud" class="hud" hidden>
+    <div class="corner tl">
+      <div class="brand">
+        <span class="brand-cn">指尖生花</span>
+        <span class="brand-en">BLOOM AT YOUR<br />FINGERTIPS</span>
+      </div>
+      <div class="brand-kicker">A HAND-TRACKED FLORA</div>
+    </div>
+
+    <div class="corner tr">
+      <div class="live" id="live-line">
+        <i class="dot" id="live-dot"></i>
+        <span id="live-label">STANDBY</span>
+        <span class="bar-sep">|</span>
+        <span id="bloom-label">BLOOM 00</span>
+      </div>
+      <div class="mode-note" id="mode-note"></div>
+      <div class="model-line" id="model-line">MODEL 01</div>
+    </div>
+
+    <div class="corner bl">
+      <div class="stat">
+        <span class="stat-k">GESTURE</span>
+        <span class="stat-v">姿态 <b id="stat-gesture">—</b></span>
+      </div>
+      <div class="stat">
+        <span class="stat-k">PET</span>
+        <span class="stat-v"><b id="stat-pet">0</b><span class="dim">/3</span></span>
+      </div>
+      <div class="duet" id="duet-flash">DUET</div>
+    </div>
+
+    <div class="corner br">
+      <button class="howto-open" id="btn-howto" type="button">
+        <span class="q">?</span><span class="q-label">怎么玩</span>
+      </button>
+      <ol class="steps" id="step-list">
+        <li data-k="near"><i>01</i><span>靠近·慢开</span></li>
+        <li data-k="tap"><i>02</i><span>轻触·一朵</span></li>
+        <li data-k="sweep"><i>03</i><span>横抚·整枝</span></li>
+        <li data-k="duet"><i>04</i><span>双手·各压一朵</span></li>
+        <li data-k="pinch"><i>05</i><span>捏合·释放</span></li>
+        <li data-k="grab"><i>06</i><span>抓住·转着看</span></li>
+        <li data-k="swipe"><i>07</i><span>横滑·换一种花</span></li>
+        <li data-k="fist"><i>08</i><span>握拳·收拢</span></li>
+      </ol>
+    </div>
+
+    <div class="coach" id="coach" hidden>
+      <span class="coach-k" id="coach-k">TIP</span>
+      <span class="coach-t" id="coach-t"></span>
+    </div>
+
+    <div class="hint" id="hint">轻触一朵</div>
+
+    <!-- 横抚进度：手在花带上划过时，三朵依次点亮 -->
+    <div class="sweep-track" id="sweep-track" hidden aria-hidden="true">
+      <span class="sweep-label" id="sweep-label">横抚 0/2</span>
+      <i></i><i></i><i></i>
+    </div>
+
+    <div class="pointer-bar" id="pointer-bar" hidden>
+      <button class="mini" id="btn-dual" type="button">模拟双手</button>
+      <span class="mini-note">按住 = 握拳</span>
+      <button class="mini" id="btn-camera" type="button">开启手势</button>
+    </div>
+  </div>
+
+  <!-- ── 开场 / 权限门 ───────────────────────────────────── -->
+  <section id="gate" class="gate">
+    <div class="gate-inner">
+      <div class="gate-kicker">A HAND-TRACKED FLORA</div>
+      <h1 class="gate-title">
+        <span class="cn">指尖生花</span>
+        <span class="en">BLOOM AT<br />YOUR FINGERTIPS</span>
+      </h1>
+      <p class="gate-hero">让花，在指尖醒来。</p>
+      <p class="gate-sub">轻触一朵，它为你开；多摸几下，整枝都会醒。</p>
+
+      <div class="gate-actions">
+        <button id="btn-start" class="cta" type="button">开启手势</button>
+        <button id="btn-pointer" class="cta ghost" type="button">无摄像头体验</button>
+        <button id="btn-gate-howto" class="cta ghost small" type="button">怎么玩</button>
+      </div>
+
+      <div class="gate-progress" id="gate-progress" hidden>
+        <div class="track"><i id="progress-fill"></i></div>
+        <div class="meta"><span id="progress-label">加载手势模型 0%</span><span id="progress-hint"></span></div>
+      </div>
+
+      <button id="btn-skip" class="cta ghost skip" type="button" hidden>先看无摄像头版</button>
+
+      <div class="gate-msg" id="gate-msg" hidden></div>
+
+      <div class="gate-foot">
+        <span class="steps-inline">靠近就开&nbsp;·&nbsp;轻触&nbsp;·&nbsp;横抚整枝&nbsp;·&nbsp;双手&nbsp;·&nbsp;捏合释放&nbsp;·&nbsp;连捏看 3D&nbsp;·&nbsp;横滑换花&nbsp;·&nbsp;握拳收拢</span>
+        <span class="privacy">画面只在本机处理，不上传</span>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- ── 「怎么玩」注释卡：画面上随时能叫出来 ───────────────── -->
+  <section id="howto" class="howto" hidden>
+    <div class="howto-card" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+      <header class="howto-head">
+        <div>
+          <span class="howto-kicker">HOW TO PLAY</span>
+          <h2 class="howto-title" id="howto-title">怎么玩</h2>
+        </div>
+        <button class="howto-close" id="btn-howto-close" type="button" aria-label="关闭">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </header>
+
+      <p class="howto-lead">把手放进画面，指尖就是你的笔。八个动作，从一朵到整枝。</p>
+
+      <ul class="howto-grid">
+        <li class="howto-item" data-k="near">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <ellipse cx="14.5" cy="11" rx="3" ry="4.2" />
+            <path d="M14.5 15.2V21" />
+            <circle cx="4.6" cy="16.6" r="1.5" />
+            <path d="M6.6 15.4l4.4-2.6" stroke-dasharray="1.6 2" />
+          </svg>
+          <div class="howto-txt">
+            <b>靠近 · 慢慢开</b>
+            <span>手往花那边移，还没碰到，花苞就开始张开——不是「点到才开」。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="tap">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <ellipse cx="12" cy="15" rx="3.4" ry="3" />
+            <path d="M12 3v6.4" />
+            <circle cx="12" cy="10.6" r="1.3" />
+          </svg>
+          <div class="howto-txt">
+            <b>食指轻触 · 一朵</b>
+            <span>只伸食指（其他三指收着）点住花心：那朵开。侧边还会显示「正在接触」。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="sweep">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3.5 17.5h17" stroke-dasharray="1.8 2.2" />
+            <circle cx="5" cy="17.5" r="1.2" />
+            <circle cx="12" cy="14.6" r="1.2" />
+            <circle cx="19" cy="17.5" r="1.2" />
+            <path d="M17.6 5.6l2.2 2.2-2.2 2.2" />
+          </svg>
+          <div class="howto-txt">
+            <b>横抚 · 整枝</b>
+            <span>手掌张开，在花的同一条线上从左到右划过去（穿到 2 朵就算，下面有三个点显示进度），三朵依次开。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="duet">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="4.4" cy="12" r="1.6" />
+            <circle cx="19.6" cy="12" r="1.6" />
+            <ellipse cx="12" cy="12" rx="2.6" ry="3.4" />
+            <path d="M7 12h1.8M15.2 12H17" stroke-dasharray="1.4 1.8" />
+          </svg>
+          <div class="howto-txt">
+            <b>双手 · 各压一朵</b>
+            <span>两只手分别靠近两朵，第三朵会自己慢慢张开——不是一瞬间爆开。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="pinch">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6.5l6.4 6.1M4 17.5l6.4-5" />
+            <circle cx="12.2" cy="12" r="1.5" />
+            <path d="M14.4 12h6" stroke-dasharray="1.6 2" />
+          </svg>
+          <div class="howto-txt">
+            <b>捏合 · 释放</b>
+            <span>拇指和食指捏一下（在花上），那朵立刻开，并溅出一小把花粉。捏着别拖——拖着不算。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="grab">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <ellipse cx="12" cy="12" rx="4.2" ry="4.2" stroke-dasharray="2 2.4" />
+            <ellipse cx="12" cy="12" rx="1.7" ry="4.6" />
+            <path d="M12 7.4v9.2" />
+            <path d="M3.4 12h2.2M18.4 12h2.2" stroke-dasharray="1.2 1.8" />
+          </svg>
+          <div class="howto-txt">
+            <b>张开手抓住 · 360° 转着看</b>
+            <span>张开五指停在一朵上（0.2 秒）→ 抓住。手左右转、上下抬、拧手腕，花跟着转，正面 / 侧面 / 背面都能看；握拳放下。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="swipe">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3.6 12h16.8" stroke-dasharray="1.8 2.2" />
+            <path d="M7.2 8.4L3.6 12l3.6 3.6M16.8 8.4L20.4 12l-3.6 3.6" />
+          </svg>
+          <div class="howto-txt">
+            <b>横滑 · 换一种花</b>
+            <span>手离开花带（花的上方或下方），张开手掌左右一划，切换 MODEL 01 / 02 / 03。在花带里横划是「横抚」，不会误换。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="fist">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="6.6" y="7.4" width="10.8" height="9.6" rx="3.4" />
+            <path d="M10 7.4v3.1M13.9 7.4v3.1" />
+          </svg>
+          <div class="howto-txt">
+            <b>握拳 · 收拢</b>
+            <span>手不在花上时握拳，整枝一起合拢；在 3D 看花里握拳是退出。</span>
+          </div>
+        </li>
+      </ul>
+
+      <footer class="howto-foot">
+        <span>没有摄像头？点「无摄像头体验」，用鼠标 / 手指拖拽一样能玩。</span>
+        <button class="cta ghost small" id="btn-howto-ok" type="button">知道了</button>
+      </footer>
+    </div>
+  </section>
+
+  <div id="debug-panel" class="debug-panel" hidden>
+    <div class="dbg-row"><span>FPS</span><b id="dbg-fps">–</b></div>
+    <div class="dbg-row"><span>LATENCY</span><b id="dbg-lat">–</b></div>
+    <div class="dbg-row"><span>STATE</span><b id="dbg-state">–</b></div>
+    <div class="dbg-row"><span>PET</span><b id="dbg-pet">–</b></div>
+    <div class="dbg-row"><span>HANDS</span><b id="dbg-hands">–</b></div>
+    <div class="dbg-row"><span>PARTICLES</span><b id="dbg-particles">–</b></div>
+    <div class="dbg-row"><span>DELEGATE</span><b id="dbg-delegate">–</b></div>
+    <div class="dbg-row"><span>LUMA</span><b id="dbg-luma">–</b></div>
+  </div>
+</main>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
