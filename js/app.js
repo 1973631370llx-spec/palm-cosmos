@@ -290,16 +290,25 @@ function warmUp() {
 /* UI                                                                  */
 /** 开摄像头（面板按钮与自测脚本共用）。 */
 async function startCamera() {
-  hud.setHint('正在加载手部模型 · LOADING LANDMARKER…');
+  hud.setHint('正在打开摄像头 · CAMERA…');
   const slowHint = setTimeout(() => {
     hud.setHint('首次要下载手部模型（约 20 秒），之后浏览器缓存，秒开');
   }, 6000);
   try {
     // 面板上已经在预载就复用进度；没有就现在开始（start() 会等它）
     if (!tracker.running && CONFIG.hand.preload !== false) {
-      tracker.preload((p) => hud.setPreload(p));
+      tracker.preload((p) => {
+        hud.setPreload(p);
+        if (p > 0) hud.setHint(`正在下载手部模型 ${Math.round(p * 100)}% · 首次约 20 秒`);
+      });
     }
-    await tracker.start();
+    await tracker.start({
+      // 摄像头一通就报一声，但面板留到识别器就绪再关（初始化期间主线程忙，提前关＝看到卡住）
+      onCamera: () => {
+        hud.setCameraLabel('CAMERA · 加载中', true);
+        hud.setHint('摄像头已开 · 正在初始化识别器…');
+      },
+    });
     S.mode = 'hand';
     S.started = true;
     hud.setCameraLabel('CAMERA LIVE', true);

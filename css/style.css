@@ -302,11 +302,11 @@ h1 em {
 .dbg-row i { font-style: normal; color: rgba(255, 246, 232, 0.24); }
 
 .gate-preload {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  color: rgba(53, 224, 208, 0.72);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: rgba(53, 224, 208, 0.85);
 }
 .gate-preload b {
   font-weight: 400;

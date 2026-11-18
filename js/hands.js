@@ -42,7 +42,7 @@ export class HandTracker {
         this.fallbackReason = null;
   }
 
-  async start() {
+  async start(opts = {}) {
     if (this.running) return true;
     this.error = null;
 
@@ -63,6 +63,12 @@ export class HandTracker {
     this.video.muted = true;
     this.video.playsInline = true;
     await this.video.play();
+    // 画面通了就先让场景出来，模型继续在后台加载（onCamera 由调用方关面板）
+    try {
+      opts.onCamera?.();
+    } catch (e) {
+      /* 调用方自己的 UI 逻辑，不影响识别 */
+    }
 
     // 预载还在跑就等它（同一批字节，不重复下载）
     if (this._preloadPromise && !this._assets) {

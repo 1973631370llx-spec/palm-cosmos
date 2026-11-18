@@ -104,6 +104,9 @@ export class Hud {
     el.hidden = false;
     const b = el.querySelector('b');
     if (b) b.textContent = `${pct}%`;
+    // 按钮副标题也报进度：拇指底下就能看到，不用找小字
+    const btnEn = document.querySelector('#btnCamera .en');
+    if (btnEn) btnEn.textContent = pct >= 100 ? 'READY · 点击进入' : `模型 ${pct}%`;
     const hint = document.getElementById('gatePreloadHint');
     if (hint) hint.textContent = pct >= 100 ? ' · 已就绪' : ' · 首次约 20 秒';
     el.style.color = pct >= 100 ? 'rgba(255,246,232,0.5)' : 'rgba(53,224,208,0.72)';
