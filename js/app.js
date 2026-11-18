@@ -236,19 +236,19 @@ function init() {
   warmUp();
   requestAnimationFrame(frame);
 
-  // 首屏后空闲时预载手部模型（仅本地模式；CDN 模式已经够快）
-  if (S.mode === 'standby' && CONFIG.hand.preload) {
+  // 首屏后立刻预载模型：面板上有进度条，点「开启掌心」直接进
+  if (S.mode === 'standby' && CONFIG.hand.preload !== false) {
     setTimeout(() => {
       if (S.started || S.mode !== 'standby') return;
       let last = -1;
       tracker?.preload?.((p) => {
         const pct = Math.round(p * 100);
-        if (pct - last >= 2 || p <= 0) {
+        if (pct - last >= 1 || p < 0) {
           last = pct;
           hud.setPreload(p);
         }
       });
-    }, 1200);
+    }, 400);
   }
 }
 
@@ -292,9 +292,13 @@ function warmUp() {
 async function startCamera() {
   hud.setHint('正在加载手部模型 · LOADING LANDMARKER…');
   const slowHint = setTimeout(() => {
-    hud.setHint('首次要下载手部模型（约 20 秒），之后浏览器缓存，秒开');
+    hud.setHint('首次要下载手部模型（约 15 秒），之后浏览器缓存，秒开');
   }, 6000);
   try {
+    // 面板上已经在预载就复用进度；没有就现在开始（start() 会等它）
+    if (!tracker.running && CONFIG.hand.preload !== false) {
+      tracker.preload((p) => hud.setPreload(p));
+    }
     await tracker.start();
     S.mode = 'hand';
     S.started = true;

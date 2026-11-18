@@ -89,24 +89,29 @@ export class Hud {
     if (this.el.hint && this.el.hint.textContent !== text) this.el.hint.textContent = text;
   }
 
-  /** 面板上的模型预载进度（0–1；<0 表示失败/取消）。 */
+  /** 面板上的模型加载进度（0–1；<0 表示失败）。 */
   setPreload(p) {
     const el = this.el.preload;
+    const bar = document.getElementById('gateBar');
     if (!el) return;
     if (p == null || p < 0) {
-      el.hidden = true;
+      el.hidden = false;
+      el.innerHTML = '模型加载失败 · 点「开启掌心」会重试';
+      if (bar) bar.hidden = true;
       return;
     }
     const pct = Math.round(Math.min(1, p) * 100);
-    if (pct >= 100) {
-      el.hidden = true;
-      return;
-    }
     el.hidden = false;
     const b = el.querySelector('b');
-    if (b && b.textContent !== `${pct}%`) {
-      b.textContent = `${pct}%`;
-      el.style.setProperty('--p', pct / 100);
+    if (b) b.textContent = `${pct}%`;
+    const hint = document.getElementById('gatePreloadHint');
+    if (hint) hint.textContent = pct >= 100 ? ' · 已就绪' : ' · 首次约 15 秒';
+    el.style.color = pct >= 100 ? 'rgba(255,246,232,0.5)' : 'rgba(53,224,208,0.72)';
+    if (bar) {
+      bar.hidden = false;
+      bar.classList.toggle('ready', pct >= 100);
+      const fill = bar.querySelector('i');
+      if (fill) fill.style.width = `${pct}%`;
     }
   }
 

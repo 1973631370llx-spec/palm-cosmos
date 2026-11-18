@@ -1,0 +1,18 @@
+﻿import { launch } from './cdp.mjs';
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+const b=await launch({port:9456,headless:true,extraArgs:['--use-angle=d3d11','--enable-gpu']});
+const {cdp}=b;
+await cdp.send('Runtime.enable'); await cdp.send('Page.enable');
+await cdp.eval("0");
+await cdp.send('Page.navigate',{url:'http://127.0.0.1:4173/?debug=1&preload=1'});
+await cdp.waitFor('window.PALM_COSMOS && PALM_COSMOS.state.booted',{timeout:30000});
+await cdp.eval("PALM_COSMOS.tracker().preload(()=>{})");
+await sleep(4000);
+const before=await cdp.eval("JSON.stringify(performance.getEntriesByType('resource').filter(e=>/\\.(wasm|task)$/.test(e.name)).map(e=>({f:e.name.split('/').pop(),t:e.transferSize,d:Math.round(e.duration)})))");
+console.log('before start:', before);
+await cdp.eval("PALM_COSMOS.startCamera().then(r=>r)");
+await sleep(1500);
+const after=await cdp.eval("JSON.stringify(performance.getEntriesByType('resource').filter(e=>/\\.(wasm|task)$/.test(e.name)).map(e=>({f:e.name.split('/').pop(),t:e.transferSize,d:Math.round(e.duration)})))");
+console.log('after start:', after);
+console.log('assets:', await cdp.eval("!!PALM_COSMOS.tracker()._assets"));
+await b.close();

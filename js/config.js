@@ -111,7 +111,7 @@ export const CONFIG = {
     cdnWasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm',
     cdnModel:
       'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-    preload: false,         // 预载字节（CDN 够快时不需要）
+    preload: true,          // 首屏后预载模型（有进度条，点开始时已经就绪）
     // 双手
     dualScale: 0.74,        // 双手时每团星系的缩放
     mergeDist: 0.80,        // 两掌心靠近到该距离 → 合并爆发

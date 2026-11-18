@@ -87,24 +87,38 @@ export class HandTracker {
     return true;
   }
 
-  /** 预载 wasm + 模型字节：下载一次就留在内存里，点开始直接喂给 MediaPipe。 */
+  /** 预载 wasm + 模型字节：下载一次就留在内存里，点开始直接喂给 MediaPipe。
+   * 优先下预压缩版（10.6MB → 3.1MB，7.5MB → 5.5MB），浏览器解压后再交给 MediaPipe。 */
   preload(onProgress) {
     if (this._assets?.task) return Promise.resolve(true);
     if (this._preloadPromise) return this._preloadPromise;
     this._preloadCtl = new AbortController();
     const signal = this._preloadCtl.signal;
-    const urls = [
+    const base = [
       new URL('../vendor/mediapipe/wasm/vision_wasm_internal.wasm', import.meta.url).href,
       new URL('../vendor/mediapipe/hand_landmarker.task', import.meta.url).href,
     ];
+    // 能解压就下 .gz（Safari 16.4+ / Chrome 全支持）；不行就下原件
+    const codec = (() => {
+      for (const c of ['brotli', 'gzip']) {
+        try {
+          new DecompressionStream(c);
+          return c;
+        } catch (e) {
+          /* next */
+        }
+      }
+      return null;
+    })();
+    const suffix = codec === 'brotli' ? '.br' : codec === 'gzip' ? '.gz' : '';
 
-    const grab = async (url, onBytes) => {
+    const fetchBytes = async (url, onBytes) => {
       const res = await fetch(url, { signal });
       if (!res.ok) throw new Error(`preload ${res.status}`);
       const total = Number(res.headers.get('content-length')) || 0;
       if (!res.body) {
         const buf = await res.arrayBuffer();
-        onBytes(buf.byteLength, total);
+        onBytes(buf.byteLength);
         return new Uint8Array(buf);
       }
       const reader = res.body.getReader();
@@ -126,25 +140,46 @@ export class HandTracker {
       return out;
     };
 
+    const load = async (url, onBytes) => {
+      if (suffix) {
+        try {
+          const packed = await fetchBytes(`${url}${suffix}`, onBytes);
+          const raw = await new Response(
+            new Blob([packed]).stream().pipeThrough(new DecompressionStream(codec))
+          ).arrayBuffer();
+          return new Uint8Array(raw);
+        } catch (err) {
+          if (err?.name === 'AbortError') throw err;
+        }
+      }
+      return fetchBytes(url, () => {});
+    };
+
     this._preloadPromise = (async () => {
       try {
         const heads = await Promise.all(
-          urls.map((u) => fetch(u, { method: 'HEAD', signal }).then((r) => Number(r.headers.get('content-length')) || 0).catch(() => 0))
+          base.map((u) =>
+            fetch(`${u}${suffix}`, { method: 'HEAD', signal })
+              .then((r) => (r.ok ? Number(r.headers.get('content-length')) || 0 : 0))
+              .catch(() => 0)
+          )
         );
         const total = heads.reduce((a, b) => a + b, 0) || 1;
         let done = 0;
         const step = (bytes) => {
           done += bytes;
-          onProgress?.(Math.min(0.999, done / total));
+          onProgress?.(Math.min(0.995, done / total));
         };
-        const [wasm, task] = await Promise.all(urls.map((u) => grab(u, (b) => step(b))));
+        const [wasm, task] = await Promise.all(base.map((u) => load(u, step)));
         this._assets = {
           wasmUrl: URL.createObjectURL(new Blob([wasm], { type: 'application/wasm' })),
           task,
+          packed: !!suffix,
         };
         onProgress?.(1);
         return true;
       } catch (err) {
+        this._assets = null;
         onProgress?.(-1);
         return false;
       }
