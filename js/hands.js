@@ -94,21 +94,16 @@ export class HandTracker {
   }
 
   /** 预载 wasm + 模型字节：下载一次就留在内存里，点开始直接喂给 MediaPipe。
-   * 公网走镜像（阿里 npm 镜像 + Google 模型源，实测 3–6MB/s）；本机走 vendor/ + 本地 gzip。 */
+   * 每个资源都备多个来源（阿里 npm 镜像 / Google 模型源 / 本站 gz），2.5 秒没下完就并行开备胎，谁先到用谁。 */
   preload(onProgress) {
     if (this._assets?.task) return Promise.resolve(true);
     if (this._preloadPromise) return this._preloadPromise;
-    this._preloadCtl = new AbortController();
-    const signal = this._preloadCtl.signal;
     const cdn = CONFIG.hand.useCdn;
-    const base = cdn
-      ? [`${CONFIG.hand.cdnWasm}/vision_wasm_internal.wasm`, CONFIG.hand.cdnModel]
-      : [
-          new URL('../vendor/mediapipe/wasm/vision_wasm_internal.wasm', import.meta.url).href,
-          new URL('../vendor/mediapipe/hand_landmarker.task', import.meta.url).href,
-        ];
-    // 本地能解压就下 .gz（Safari 16.4+ / Chrome 全支持）；CDN 自带压缩，直接下原件
-    const codec = !cdn && (() => {
+    const localWasm = new URL('../vendor/mediapipe/wasm/vision_wasm_internal.wasm', import.meta.url).href;
+    const localTask = new URL('../vendor/mediapipe/hand_landmarker.task', import.meta.url).href;
+
+    // 能解压就下 .gz（Safari 16.4+ / Chrome 全支持）
+    const codec = (() => {
       for (const c of ['brotli', 'gzip']) {
         try {
           new DecompressionStream(c);
@@ -121,14 +116,31 @@ export class HandTracker {
     })();
     const suffix = codec === 'brotli' ? '.br' : codec === 'gzip' ? '.gz' : '';
 
-    const fetchBytes = async (url, onBytes) => {
+    const WASM_RAW = 11153617;
+    const TASK_RAW = 7819105;
+    const wasmSources = cdn
+      ? [`${CONFIG.hand.cdnWasm}/vision_wasm_internal.wasm`, localWasm + suffix]
+      : [localWasm + suffix, localWasm];
+    const taskSources = cdn ? [CONFIG.hand.cdnModel, localTask + suffix] : [localTask + suffix, localTask];
+    const estimate = (url, raw) => (suffix && url.endsWith(suffix) ? raw * 0.34 : raw);
+
+    const decode = async (packed, bytes) => {
+      if (!packed) return bytes;
+      const raw = await new Response(
+        new Blob([bytes]).stream().pipeThrough(new DecompressionStream(codec))
+      ).arrayBuffer();
+      return new Uint8Array(raw);
+    };
+
+    // 逐块读流，边下边报字节
+    const streamFrom = async (url, onBytes, signal) => {
       const res = await fetch(url, { signal });
       if (!res.ok) throw new Error(`preload ${res.status}`);
-      const total = Number(res.headers.get('content-length')) || 0;
+      const packed = !!suffix && url.endsWith(suffix);
       if (!res.body) {
-        const buf = await res.arrayBuffer();
+        const buf = new Uint8Array(await res.arrayBuffer());
         onBytes(buf.byteLength);
-        return new Uint8Array(buf);
+        return decode(packed, buf);
       }
       const reader = res.body.getReader();
       const chunks = [];
@@ -138,7 +150,7 @@ export class HandTracker {
         if (done) break;
         chunks.push(value);
         got += value.byteLength;
-        onBytes(value.byteLength, total);
+        onBytes(value.byteLength);
       }
       const out = new Uint8Array(got);
       let at = 0;
@@ -146,44 +158,72 @@ export class HandTracker {
         out.set(c, at);
         at += c.byteLength;
       }
-      return out;
+      return decode(packed, out);
     };
 
-    const load = async (url, onBytes) => {
-      if (suffix) {
-        try {
-          const packed = await fetchBytes(`${url}${suffix}`, onBytes);
-          const raw = await new Response(
-            new Blob([packed]).stream().pipeThrough(new DecompressionStream(codec))
-          ).arrayBuffer();
-          return new Uint8Array(raw);
-        } catch (err) {
-          if (err?.name === 'AbortError') throw err;
-        }
-      }
-      return fetchBytes(url, () => {});
-    };
+    /** 多源竞速：先跑第一个，2.5 秒后把备胎也放出去，第一个完成的胜出。 */
+    const race = (urls, raw, onBytes) =>
+      new Promise((resolve, reject) => {
+        let settled = false;
+        let failed = 0;
+        let timer = null;
+        const controllers = [];
+        const launch = (url, i) => {
+          const ctl = new AbortController();
+          controllers.push(ctl);
+          const est = estimate(url, raw);
+          streamFrom(url, (n) => onBytes(i, n, est), ctl.signal).then(
+            (bytes) => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timer);
+              controllers.forEach((c) => c.abort());
+              resolve(bytes);
+            },
+            (err) => {
+              if (settled) return;
+              failed++;
+              if (failed >= urls.length) {
+                settled = true;
+                clearTimeout(timer);
+                controllers.forEach((c) => c.abort());
+                reject(err);
+              }
+            }
+          );
+        };
+        launch(urls[0], 0);
+        timer = setTimeout(() => {
+          if (settled) return;
+          urls.slice(1).forEach((u, k) => launch(u, k + 1));
+        }, 2500);
+      });
 
     this._preloadPromise = (async () => {
       try {
-        const heads = await Promise.all(
-          base.map((u) =>
-            fetch(`${u}${suffix}`, { method: 'HEAD', signal })
-              .then((r) => (r.ok ? Number(r.headers.get('content-length')) || 0 : 0))
-              .catch(() => 0)
-          )
-        );
-        const total = heads.reduce((a, b) => a + b, 0) || 1;
-        let done = 0;
-        const step = (bytes) => {
-          done += bytes;
-          onProgress?.(Math.min(0.995, done / total));
+        // 进度：两件资源各自已收字节 / 估算大小，取较小的那个（都要下完才算好）
+        const got = [
+          { bytes: 0, est: estimate(wasmSources[0], WASM_RAW) },
+          { bytes: 0, est: estimate(taskSources[0], TASK_RAW) },
+        ];
+        const report = () => {
+          const a = Math.min(1, got[0].bytes / got[0].est);
+          const b = Math.min(1, got[1].bytes / got[1].est);
+          onProgress?.(Math.min(0.995, (a + b) / 2));
         };
-        const [wasm, task] = await Promise.all(base.map((u) => load(u, step)));
+        const track = (slot) => (i, n, est) => {
+          got[slot].bytes += n;
+          if (est) got[slot].est = est;
+          report();
+        };
+
+        const [wasm, task] = await Promise.all([
+          race(wasmSources, WASM_RAW, track(0)),
+          race(taskSources, TASK_RAW, track(1)),
+        ]);
         this._assets = {
           wasmUrl: URL.createObjectURL(new Blob([wasm], { type: 'application/wasm' })),
           task,
-          packed: !!suffix,
         };
         onProgress?.(1);
         return true;

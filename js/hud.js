@@ -108,7 +108,7 @@ export class Hud {
     const btnEn = document.querySelector('#btnCamera .en');
     if (btnEn) btnEn.textContent = pct >= 100 ? 'READY · 点击进入' : `模型 ${pct}%`;
     const hint = document.getElementById('gatePreloadHint');
-    if (hint) hint.textContent = pct >= 100 ? ' · 已就绪' : ' · 首次约 20 秒';
+    if (hint) hint.textContent = pct >= 100 ? ' · 已就绪' : ' · 首次几秒';
     el.style.color = pct >= 100 ? 'rgba(255,246,232,0.5)' : 'rgba(53,224,208,0.72)';
     if (bar) {
       bar.hidden = false;

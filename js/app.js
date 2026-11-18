@@ -238,17 +238,29 @@ function init() {
 
   // 首屏后立刻预载模型：面板上有进度条，点「开启掌心」直接进
   if (S.mode === 'standby' && CONFIG.hand.preload !== false) {
+    let ready = false;
     setTimeout(() => {
       if (S.started || S.mode !== 'standby') return;
       let last = -1;
       tracker?.preload?.((p) => {
         const pct = Math.round(p * 100);
+        if (p >= 1) {
+          ready = true;
+          const skip = document.getElementById('btnSkip');
+          if (skip) skip.hidden = true;
+        }
         if (pct - last >= 1 || p < 0) {
           last = pct;
           hud.setPreload(p);
         }
       });
     }, 400);
+    // 网络慢的线路：转 8 秒还没好，就给出「先进去玩」的出口
+    setTimeout(() => {
+      if (ready || S.started) return;
+      const skip = document.getElementById('btnSkip');
+      if (skip) skip.hidden = false;
+    }, 8000);
   }
 }
 
@@ -288,25 +300,40 @@ function warmUp() {
 
 /* ------------------------------------------------------------------ */
 /* UI                                                                  */
-/** 开摄像头（面板按钮与自测脚本共用）。 */
-async function startCamera() {
-  hud.setHint('正在打开摄像头 · CAMERA…');
+/** 开摄像头（面板按钮与自测脚本共用）。
+   * early=true：摄像头一通就关面板先进场景，模型继续在后台下（下载完自动切成手势模式）。 */
+async function startCamera(opts = {}) {
+  const early = !!opts.early;
+  hud.setHint(early ? '手部识别加载中 · 场景先玩起来' : '正在打开摄像头 · CAMERA…');
   const slowHint = setTimeout(() => {
-    hud.setHint('首次要下载手部模型（约 20 秒），之后浏览器缓存，秒开');
+    hud.setHint('首次要下载手部模型（首次几秒到几十秒，取决于网络），之后浏览器缓存，秒开');
   }, 6000);
   try {
     // 面板上已经在预载就复用进度；没有就现在开始（start() 会等它）
     if (!tracker.running && CONFIG.hand.preload !== false) {
       tracker.preload((p) => {
         hud.setPreload(p);
-        if (p > 0) hud.setHint(`正在下载手部模型 ${Math.round(p * 100)}% · 首次约 20 秒`);
+        if (p > 0) {
+          hud.setHint(
+            early
+              ? `场景已可玩 · 手部识别 ${Math.round(p * 100)}%`
+              : `正在下载手部模型 ${Math.round(p * 100)}% · 首次几秒`
+          );
+        }
       });
     }
     await tracker.start({
-      // 摄像头一通就报一声，但面板留到识别器就绪再关（初始化期间主线程忙，提前关＝看到卡住）
       onCamera: () => {
         hud.setCameraLabel('CAMERA · 加载中', true);
-        hud.setHint('摄像头已开 · 正在初始化识别器…');
+        if (early) {
+          // 用户已经等不及了：立刻进场景，识别器就绪后再接管
+          S.mode = 'hand';
+          S.started = true;
+          hud.showGate(false);
+          hud.setHint('场景已可玩 · 手部识别加载中…');
+        } else {
+          hud.setHint('摄像头已开 · 正在初始化识别器…');
+        }
       },
     });
     S.mode = 'hand';
@@ -352,6 +379,18 @@ function bindUi() {
     hud.setCameraLabel('POINTER MODE', false);
     hud.showGate(false);
     hud.setHint('按住 = 坍缩 · 松开 = 爆发 · ← ↑ ↓ → 移动');
+  });
+
+  // 下载慢的线路：先放人进场景，识别器就绪后自动接管
+  const btnSkip = document.getElementById('btnSkip');
+  btnSkip?.addEventListener('click', async () => {
+    btnSkip.hidden = true;
+    btnSkip.disabled = true;
+    try {
+      await startCamera({ early: true });
+    } finally {
+      btnSkip.disabled = false;
+    }
   });
 
   document.getElementById('gate')?.addEventListener('keydown', (e) => {
