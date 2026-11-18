@@ -105,7 +105,7 @@ export class Hud {
     const b = el.querySelector('b');
     if (b) b.textContent = `${pct}%`;
     const hint = document.getElementById('gatePreloadHint');
-    if (hint) hint.textContent = pct >= 100 ? ' · 已就绪' : ' · 首次约 15 秒';
+    if (hint) hint.textContent = pct >= 100 ? ' · 已就绪' : ' · 首次约 20 秒';
     el.style.color = pct >= 100 ? 'rgba(255,246,232,0.5)' : 'rgba(53,224,208,0.72)';
     if (bar) {
       bar.hidden = false;

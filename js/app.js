@@ -292,7 +292,7 @@ function warmUp() {
 async function startCamera() {
   hud.setHint('正在加载手部模型 · LOADING LANDMARKER…');
   const slowHint = setTimeout(() => {
-    hud.setHint('首次要下载手部模型（约 15 秒），之后浏览器缓存，秒开');
+    hud.setHint('首次要下载手部模型（约 20 秒），之后浏览器缓存，秒开');
   }, 6000);
   try {
     // 面板上已经在预载就复用进度；没有就现在开始（start() 会等它）
