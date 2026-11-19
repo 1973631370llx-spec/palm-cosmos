@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-19T18:15:56.773Z",
+  "generatedAt": "2026-11-19T18:37:22.227Z",
   "node": "v24.21.0",
   "out": "dist-web",
   "policy": {
@@ -37,24 +37,24 @@
   },
   "totals": {
     "files": 41,
-    "originalBytes": 43617159,
-    "brBytes": 12829238,
-    "gzBytes": 16427850,
+    "originalBytes": 43619507,
+    "brBytes": 12829941,
+    "gzBytes": 16428697,
     "brFilesKept": 38,
     "gzFilesKept": 38,
-    "savedByBr": 30787921,
+    "savedByBr": 30789566,
     "savedPctByBr": 70.6
   },
   "groups": {
     "firstScreen": {
       "name": "first-screen",
       "files": 25,
-      "original": 1643613,
-      "br": 304946,
-      "gz": 381511,
+      "original": 1644133,
+      "br": 305104,
+      "gz": 381730,
       "brFiles": 25,
-      "saved": 1338667,
-      "savedPct": 81.44660573991565,
+      "saved": 1339029,
+      "savedPct": 81.44286380724674,
       "meaning": "首屏关键路径：index.html + src/*.js + three.module.js + addons"
     },
     "heavy": {
@@ -71,22 +71,22 @@
     "rest": {
       "name": "rest",
       "files": 7,
-      "original": 145901,
-      "br": 57327,
-      "gz": 63417,
+      "original": 147729,
+      "br": 57872,
+      "gz": 64045,
       "brFiles": 5,
-      "saved": 88574,
-      "savedPct": 60.708288496994534
+      "saved": 89857,
+      "savedPct": 60.82556573184683
     },
     "all": {
       "name": "all",
       "files": 41,
-      "original": 43617159,
-      "br": 12829238,
-      "gz": 16427850,
+      "original": 43619507,
+      "br": 12829941,
+      "gz": 16428697,
       "brFiles": 38,
-      "saved": 30787921,
-      "savedPct": 70.5867179474023
+      "saved": 30789566,
+      "savedPct": 70.58668957446035
     }
   },
   "files": [
@@ -158,9 +158,9 @@
     },
     {
       "path": "src/main.js",
-      "original": 93641,
-      "br": 25276,
-      "gz": 30380
+      "original": 94161,
+      "br": 25434,
+      "gz": 30599
     },
     {
       "path": "src/perf.js",
@@ -194,9 +194,9 @@
     },
     {
       "path": "src/scenes/station.js",
-      "original": 26917,
-      "br": 7639,
-      "gz": 9057
+      "original": 28745,
+      "br": 8184,
+      "gz": 9685
     },
     {
       "path": "src/scenes/xmas.js",

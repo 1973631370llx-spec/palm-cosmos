@@ -755,6 +755,19 @@ function closeGate() {
   el.hud.hidden = false;
   tutorial.syncSteps();
   tutorial.coach(COACH.start[0], COACH.start[1], 7000);
+  // v5：场景坞默认收着，得告诉人它在哪 —— 只说一次，别打扰回访的人
+  try {
+    if (!localStorage.getItem('bloom.dock.hinted')) {
+      localStorage.setItem('bloom.dock.hinted', '1');
+      setTimeout(() => {
+        if (plat.id === 'bloom' && el.dockList && el.dockList.hidden) {
+          toast('场景坞：点「场景」换个世界（宇宙 / 圣诞树 / 空间站）', 4600);
+        }
+      }, 3200);
+    }
+  } catch (err) {
+    /* localStorage 被禁用就算了，不弹 */
+  }
   setTimeout(() => {
     el.gate.hidden = true;
   }, 750);

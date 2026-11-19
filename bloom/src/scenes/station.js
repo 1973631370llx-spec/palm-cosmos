@@ -98,7 +98,7 @@ export function createScene(ctx) {
 
   /* ── 地球：大球 + 加色大气壳 ─────────────────────────────── */
   const earthGroup = new THREE.Group();
-  earthGroup.position.set(-1080, -420, -3300);
+  // 位置算过：地板在 y=-255，地球原来放 y=-300 会被地板整块挡掉；\n  // 抬到窗口视线上（水平 7°、垂直 1°，竖屏半角约 11°），前窗里才真的有一颗地球。\n  earthGroup.position.set(-330, -40, -2700);
   const earthTex = (() => {
     // 程序生成的「海蓝 + 云带」，够远看一眼就行，别指望像卫星图
     const S = 256;
@@ -106,13 +106,13 @@ export function createScene(ctx) {
     cv.width = S;
     cv.height = S;
     const g = cv.getContext('2d');
-    g.fillStyle = '#0b2f5e';
+    g.fillStyle = '#1c5b9e';
     g.fillRect(0, 0, S, S);
     for (let i = 0; i < 220; i += 1) {
       const x = Math.random() * S;
       const y = Math.random() * S;
       const r = rand(6, 40);
-      g.fillStyle = Math.random() > 0.55 ? 'rgba(38,92,64,0.55)' : 'rgba(120,170,220,0.22)';
+      g.fillStyle = Math.random() > 0.55 ? 'rgba(58,132,92,0.6)' : 'rgba(170,208,252,0.3)';
       g.beginPath();
       g.ellipse(x, y, r, r * rand(0.4, 1), Math.random() * TAU, 0, TAU);
       g.fill();
@@ -136,7 +136,7 @@ export function createScene(ctx) {
     new THREE.MeshBasicMaterial({
       color: '#7fb6ff',
       transparent: true,
-      opacity: 0.16,
+      opacity: 0.22,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     }),
@@ -209,8 +209,8 @@ export function createScene(ctx) {
   /* 舱壁：五块板（前脸留空 = 窗），这样前窗外面才是真的星空。
      早先用一个 BackSide 大盒子把相机罩住，代价是「窗外」也被封死，只剩一块死蓝色玻璃。 */
   const WALL_OFF_C = new THREE.Color('#05070b');
-  const WALL_ON_C = new THREE.Color('#0a0e15');
-  const wallMat = new THREE.MeshBasicMaterial({ color: '#0a0e15', side: THREE.DoubleSide });
+  const WALL_ON_C = new THREE.Color('#131b28');
+  const wallMat = new THREE.MeshBasicMaterial({ color: '#131b28', side: THREE.DoubleSide });
   const wallParts = [
     { w: 700, h: 520, p: [0, 0, 260], rx: 0, ry: Math.PI }, // 后墙（相机背后）
     { w: 700, h: 520, p: [-330, 0, -140], rx: 0, ry: Math.PI / 2 }, // 左壁
@@ -256,6 +256,49 @@ export function createScene(ctx) {
     m.scale.set(f.s[0], f.s[1], f.s[2]);
     m.position.set(f.p[0], f.p[1], f.p[2]);
     cockpit.add(m);
+  }
+
+  /* 舱内灯带：驾驶舱不能是一块黑。
+     现实里这种舱会有沿着顶/底/侧壁走的冷光灯条，它既能照亮结构，
+     又不会像面光那样把画面糊白（加色混合 + 低不透明度，只提亮自己）。 */
+  const stripMat = new THREE.MeshBasicMaterial({
+    color: '#2f567a',
+    transparent: true,
+    opacity: 0.52,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const stripGeo = new THREE.BoxGeometry(1, 1, 1);
+  const strips = [
+    { s: [640, 3, 3], p: [0, 246, -505] }, // 顶前
+    { s: [640, 3, 3], p: [0, 246, 30] }, // 顶后
+    { s: [640, 2, 2], p: [0, -238, -505] }, // 底前
+    { s: [3, 3, 300], p: [-318, 246, -240] }, // 顶左
+    { s: [3, 3, 300], p: [318, 246, -240] }, // 顶右
+    { s: [2, 300, 2], p: [-318, -110, -505] }, // 侧前左
+    { s: [2, 300, 2], p: [318, -110, -505] }, // 侧前右
+    { s: [420, 2, 2], p: [0, 116, -512] }, // 窗下沿一条
+  ];
+  for (const s of strips) {
+    const m = new THREE.Mesh(stripGeo, stripMat);
+    m.scale.set(s.s[0], s.s[1], s.s[2]);
+    m.position.set(s.p[0], s.p[1], s.p[2]);
+    cockpit.add(m);
+  }
+
+  /* 控制台顶上的两盏舱灯：给面板一点俯照，顺便在画面上半部留两个亮斑 */
+  const lampMat = new THREE.MeshBasicMaterial({
+    color: '#b9d3ea',
+    transparent: true,
+    opacity: 0.5,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const lampGeo = new THREE.PlaneGeometry(150, 14);
+  for (const lx of [-150, 150]) {
+    const l = new THREE.Mesh(lampGeo, lampMat);
+    l.position.set(lx, 214, -392);
+    cockpit.add(l);
   }
 
   /* 控制台：一块斜面板（拉远到 z=-460，按钮缩到 48×30，
