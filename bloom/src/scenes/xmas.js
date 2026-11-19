@@ -269,6 +269,7 @@ export function createScene(ctx) {
   group.add(snow);
 
   /* ── 状态 ─────────────────────────────────────────────────── */
+  const buf = { waves: 0, pins: 0 };
   const state = {
     t: 0,
     lights: 1, // 0..1 灯串亮度
@@ -340,6 +341,7 @@ export function createScene(ctx) {
     gesture(ev) {
       if (!ev || !ev.type) return;
       if (ev.type === 'sweep') {
+        buf.waves += 1;
         state.gust = 1;
         state.status = '挥手 · 雪被吹起来';
       } else if (ev.type === 'pinch') {
@@ -351,6 +353,19 @@ export function createScene(ctx) {
       return {
         status: state.status,
         value: state.pinned / Math.max(1, ORN),
+      };
+    },
+
+    debug() {
+      return {
+        firstPerson: state.firstPerson,
+        lights: +state.lights.toFixed(2),
+        lightsOn: state.lightsOn,
+        pinned: state.pinned,
+        crowned: state.crowned,
+        gust: +state.gust.toFixed(2),
+        waves: buf.waves,
+        status: state.status,
       };
     },
 

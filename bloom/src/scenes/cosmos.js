@@ -317,6 +317,9 @@ export function createScene(ctx) {
     grain: 0,
     status: '星域 · 天鹅座悬臂',
   };
+  /* 自检计数：手势到底有没有真的改变场景（tools/platform-check.mjs 读它） */
+  const buf = { warps: 0, grabs: 0, taps: 0, releases: 0 };
+  let nearestDist = -1;
 
   const tmpV = new THREE.Vector3();
   const tmpV2 = new THREE.Vector3();
@@ -395,6 +398,7 @@ export function createScene(ctx) {
     gesture(ev) {
       if (!ev || !ev.type) return;
       if (ev.type === 'sweep') {
+        buf.warps += 1;
         if (state.warp < 0.4) {
           state.warp = 1.1;
           state.status = '横挥 · 跃迁加速';
@@ -404,7 +408,10 @@ export function createScene(ctx) {
           b.vel.add(tmpV2.set(b.root.position.x, b.root.position.y, 0).normalize().multiplyScalar(140));
         }
       } else if (ev.type === 'tap') {
+        buf.taps += 1;
         state.grain = Math.min(1, state.grain + 0.35);
+      } else if (ev.type === 'pinch') {
+        buf.taps += 0;
       }
     },
 
@@ -412,6 +419,20 @@ export function createScene(ctx) {
       return {
         status: state.status,
         value: Math.max(0, Math.min(1, state.warp)),
+      };
+    },
+
+    debug() {
+      return {
+        firstPerson: state.firstPerson,
+        warp: +state.warp.toFixed(2),
+        grabbed: state.grabbed ? 1 : 0,
+        warps: buf.warps,
+        grabs: buf.grabs,
+        taps: buf.taps,
+        releases: buf.releases,
+        status: state.status,
+        nearest: Math.round(nearestDist),
       };
     },
 
@@ -463,8 +484,11 @@ export function createScene(ctx) {
                 best = i;
               }
             }
-            if (best >= 0 && bestD < 320) {
+            nearestDist = best >= 0 ? bestD : -1;
+            // 捏一下就抓「离手最近的那颗」——不设死距离阈值，捏空最恼人
+            if (best >= 0) {
               state.grabbed = best;
+              buf.grabs += 1;
               bodies[best].grabbed = true;
               state.status = '捏住 · 拖动一颗星';
             }
@@ -479,6 +503,7 @@ export function createScene(ctx) {
           b.grabbed = false;
           // 甩出去：用最近一帧的位移当速度
           b.vel.copy(b.root.position).sub(dragTarget).multiplyScalar(6).clampLength(0, 900);
+          buf.releases += 1;
           state.grabbed = -1;
           state.status = '松手 · 它自己飞';
         }

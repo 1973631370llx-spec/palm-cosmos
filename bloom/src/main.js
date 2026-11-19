@@ -1213,6 +1213,13 @@ async function setPlatform(id, opts = {}) {
   }
   plat.id = real;
   plat.view = 'third';
+  // 花的引擎有自己的 LOCKED / 冷却状态：进了别的场景要清干净，
+  // 否则它会拦掉横挥、双端这类事件（场景里的手势就再也不响应了）
+  if (real !== 'bloom') {
+    engine.hardReset();
+    flora.closeAll({ now: performance.now(), order: [2, 1, 0], stagger: 0.06 });
+    prox.heat[0] = prox.heat[1] = prox.heat[2] = 0;
+  }
   bloomRoot.visible = real === 'bloom';
   state.platform = real;
   // 花的场景有自己的一套 HUD 提示，换场景时收起来免得打架
@@ -2513,6 +2520,10 @@ function boot() {
         actions: platformHost.actions().map((a) => a.id),
         hud: platformHost.hud(),
       };
+    },
+    /** 场景内部状态（手势有没有真的改变它），自检脚本读这个 */
+    platformDebug() {
+      return platformHost.info().debug || null;
     },
     platformAction(id) {
       return platformSwitchAction(id);

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-19T17:44:36.549Z",
+  "generatedAt": "2026-11-19T18:15:56.773Z",
   "node": "v24.21.0",
   "out": "dist-web",
   "policy": {
@@ -37,24 +37,24 @@
   },
   "totals": {
     "files": 41,
-    "originalBytes": 43614562,
-    "brBytes": 12828449,
-    "gzBytes": 16426956,
+    "originalBytes": 43617159,
+    "brBytes": 12829238,
+    "gzBytes": 16427850,
     "brFilesKept": 38,
     "gzFilesKept": 38,
-    "savedByBr": 30786113,
+    "savedByBr": 30787921,
     "savedPctByBr": 70.6
   },
   "groups": {
     "firstScreen": {
       "name": "first-screen",
       "files": 25,
-      "original": 1642935,
-      "br": 304734,
-      "gz": 381262,
+      "original": 1643613,
+      "br": 304946,
+      "gz": 381511,
       "brFiles": 25,
-      "saved": 1338201,
-      "savedPct": 81.45185293392618,
+      "saved": 1338667,
+      "savedPct": 81.44660573991565,
       "meaning": "首屏关键路径：index.html + src/*.js + three.module.js + addons"
     },
     "heavy": {
@@ -71,22 +71,22 @@
     "rest": {
       "name": "rest",
       "files": 7,
-      "original": 143982,
-      "br": 56750,
-      "gz": 62772,
+      "original": 145901,
+      "br": 57327,
+      "gz": 63417,
       "brFiles": 5,
-      "saved": 87232,
-      "savedPct": 60.58535094664611
+      "saved": 88574,
+      "savedPct": 60.708288496994534
     },
     "all": {
       "name": "all",
       "files": 41,
-      "original": 43614562,
-      "br": 12828449,
-      "gz": 16426956,
+      "original": 43617159,
+      "br": 12829238,
+      "gz": 16427850,
       "brFiles": 38,
-      "saved": 30786113,
-      "savedPct": 70.5867755819719
+      "saved": 30787921,
+      "savedPct": 70.5867179474023
     }
   },
   "files": [
@@ -158,9 +158,9 @@
     },
     {
       "path": "src/main.js",
-      "original": 93103,
-      "br": 25077,
-      "gz": 30153
+      "original": 93641,
+      "br": 25276,
+      "gz": 30380
     },
     {
       "path": "src/perf.js",
@@ -170,9 +170,9 @@
     },
     {
       "path": "src/platform.js",
-      "original": 6339,
-      "br": 1973,
-      "gz": 2397
+      "original": 6479,
+      "br": 1986,
+      "gz": 2419
     },
     {
       "path": "src/poses.js",
@@ -188,21 +188,21 @@
     },
     {
       "path": "src/scenes/cosmos.js",
-      "original": 20628,
-      "br": 5925,
-      "gz": 7029
+      "original": 21463,
+      "br": 6184,
+      "gz": 7339
     },
     {
       "path": "src/scenes/station.js",
-      "original": 26212,
-      "br": 7445,
-      "gz": 8821
+      "original": 26917,
+      "br": 7639,
+      "gz": 9057
     },
     {
       "path": "src/scenes/xmas.js",
-      "original": 17293,
-      "br": 5188,
-      "gz": 6116
+      "original": 17672,
+      "br": 5312,
+      "gz": 6215
     },
     {
       "path": "src/theme.js",

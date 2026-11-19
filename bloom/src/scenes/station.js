@@ -543,6 +543,18 @@ export function createScene(ctx) {
       };
     },
 
+    debug() {
+      return {
+        firstPerson: state.firstPerson,
+        hover: state.hover,
+        pressed: state.pressed,
+        thrust: +state.thrust.toFixed(2),
+        lightsOn: state.lightsOn,
+        grip: state.grip,
+        status: state.status,
+      };
+    },
+
     stats() {
       let tris = 0;
       group.traverse((o) => {
@@ -697,6 +709,14 @@ export function createScene(ctx) {
       }
 
       cam.updateMatrixWorld();
+
+      /* 捏合按按钮：引擎不发 pinch 事件（那是花的逻辑），所以自己判边沿 ——
+         「上一帧没捏、这一帧捏了」且光标停在某个按钮上 = 按下。 */
+      const pinchNow = !!(h0 && h0.pinch && h0.pinch.on);
+      if (state.firstPerson && pinchNow && !state.wasPinch && state.hover >= 0) {
+        pressButton(buttons[state.hover]);
+      }
+      state.wasPinch = pinchNow;
 
       /* 状态回落：压下去 1.4 秒还没新动作就回到一句中性描述 */
       if (state.pressed) {

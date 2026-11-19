@@ -218,6 +218,11 @@ export class PlatformHost {
       } catch (err) {
         out.stats = null;
       }
+      try {
+        out.debug = this.host.api.debug ? this.host.api.debug() : null;
+      } catch (err) {
+        out.debug = null;
+      }
       out.meta = this.host.META || null;
     }
     return out;
