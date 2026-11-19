@@ -508,6 +508,8 @@ export class Flora {
       uSizeMul: { value: 1 },
       uGlow: { value: 1 },
       uOpacity: { value: 0 },
+      // v4：四季颜色乘数（1,1,1 = 原样；改这个就能让整枝花换季，不用重建几何）
+      uTint: { value: new THREE.Vector3(1, 1, 1) },
     };
     this.points = new THREE.Points(this.geometry, this._makeMaterial());
     this.points.frustumCulled = false;
@@ -537,6 +539,7 @@ export class Flora {
         uniform vec3 uCenter0, uCenter1, uCenter2;
         uniform vec3 uBloom3, uHeat3, uBurst3, uOrbit3, uTilt3, uRoll3;
         uniform float uTime, uBreath, uExposure, uPxScale, uSizeMul, uGlow, uOpacity, uTwist, uRadius;
+        uniform vec3 uTint;
 
         varying vec3 vColor;
         varying float vAlpha;
@@ -614,7 +617,7 @@ export class Flora {
           gl_PointSize = clamp(sz, 1.0, 64.0);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
 
-          vColor = aColor * uGlow * (1.0 + heat * 0.7) * (1.0 + depth * 0.1) * uExposure;
+          vColor = aColor * uTint * uGlow * (1.0 + heat * 0.7) * (1.0 + depth * 0.1) * uExposure;
           vAlpha = aAlpha * mix(0.24, 1.0, tp) * uOpacity;
         }
       `,
@@ -876,6 +879,26 @@ export class Flora {
     this.targetOpacity = clamp01(v);
   }
 
+  /**
+   * v4 四季：把颜色乘数推到 uniform 上。
+   * 传 sRGB 的 [r,g,b] 乘数（1,1,1 = 原样），内部转线性再插值，
+   * 由 update() 每帧向 tintTarget 逼近，所以换季是渐变而不是闪一下。
+   */
+  setTint(rgb, { immediate = false } = {}) {
+    const lin = rgbToLinear(rgb);
+    this.tintTarget = [lin[0], lin[1], lin[2]];
+    if (immediate || !this.tintCur) {
+      this.tintCur = [...this.tintTarget];
+      this.uniforms.uTint.value.set(this.tintCur[0], this.tintCur[1], this.tintCur[2]);
+    }
+  }
+
+  /** 某朵花开到什么程度（0–1），花语卡用它判断「值不值得弹」 */
+  bloomOf(i) {
+    const f = this.flowers[i];
+    return f ? clamp01(f.value) : 0;
+  }
+
   openFlower(i, { now, delay = 0, dur = BLOOM.openDur } = {}) {
     const f = this.flowers[i];
     if (!f) return;
@@ -1065,6 +1088,21 @@ duetSlow({ now, openDur = BLOOM.openDur, lag = 0.55, slow = 2.0 } = {}) {
     }
     this.exposureLevel += (exposure - this.exposureLevel) * Math.min(1, dt * 4);
     this.uniforms.uExposure.value = 1 + this.exposureLevel;
+
+    // v4 四季：颜色乘数渐变（1.4s 左右走完，换季不会闪）
+    if (this.tintTarget) {
+      if (!this.tintCur) this.tintCur = [...this.tintTarget];
+      const kt = Math.min(1, dt * 1.6);
+      let changed = false;
+      for (let i = 0; i < 3; i += 1) {
+        const d = this.tintTarget[i] - this.tintCur[i];
+        if (Math.abs(d) > 0.0005) {
+          this.tintCur[i] += d * kt;
+          changed = true;
+        }
+      }
+      if (changed) this.uniforms.uTint.value.set(this.tintCur[0], this.tintCur[1], this.tintCur[2]);
+    }
 
     // 变体扭角 / 尺寸、3D 转角：都走同一条平滑，绝不瞬变
     const kf = Math.min(1, dt * 6);

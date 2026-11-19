@@ -1,4 +1,4 @@
-﻿/**
+/**
  * main.js — 舞台、循环、输入源（摄像头 / 指针 / 演示）、HUD、调试。
  *
  * 数据流：camera.js 出 landmark → hands.js 出「手」→ interaction.js 出事件
@@ -31,7 +31,8 @@ import {
   DEMO,
   STATE,
 } from './config.js';
-import { POST, TRAIL, COLOR, VIEW } from './theme.js';
+import { POST, TRAIL, COLOR, VIEW, SEASONS, SEASON_HOLD, ORACLE_LINES, FLOWER_TINT } from './theme.js';
+import { HeartBurst } from './heart.js';
 import { QualityGovernor, TIERS } from './perf.js';
 import { HandTracker, HAND_CONNECTIONS } from './hands.js';
 import { InteractionEngine, detectPinch, SwipeTracker } from './interaction.js';
@@ -90,6 +91,18 @@ const el = {
   stepList: document.getElementById('step-list'),
   sweepTrack: document.getElementById('sweep-track'),
   sweepLabel: document.getElementById('sweep-label'),
+  /* v4：季节 / 花语卡 / 比心 */
+  veil: document.getElementById('veil'),
+  seasonLine: document.getElementById('season-line'),
+  seasonLabel: document.getElementById('season-label'),
+  seasonBar: document.getElementById('season-bar'),
+  oracle: document.getElementById('oracle'),
+  oracleSeason: document.getElementById('oracle-season'),
+  oracleWord: document.getElementById('oracle-word'),
+  oraclePoem: document.getElementById('oracle-poem'),
+  oracleFlower: document.getElementById('oracle-flower'),
+  oracleDate: document.getElementById('oracle-date'),
+  oracleClose: document.getElementById('btn-oracle-close'),
 };
 
 const state = {
@@ -831,19 +844,22 @@ function applyEvents(events, now) {
    玩法注释：画面里的八步 + 顶部教练条 + 随时可叫的卡片
    ══════════════════════════════════════════════════════════ */
 
-const STEPS = ['near', 'tap', 'sweep', 'duet', 'pinch', 'grab', 'swipe', 'fist'];
+const STEPS = ['near', 'tap', 'sweep', 'duet', 'pinch', 'grab', 'swipe', 'fist', 'oracle', 'season', 'heart'];
 
 /** 每个动作做完之后，提示下一个 */
 const COACH = {
   start: ['起步', '把手放进画面，靠近花苞——它会自己慢慢开'],
-  near: ['02 / 08', '张开手停在花上 0.1 秒就抓住了：左右上下移动，360° 转着看它'],
-  tap: ['03 / 08', '手掌从左到右抚过整枝（差不多齐平就行），三朵依次开'],
-  sweep: ['04 / 08', '两只手各压住一端，中间那朵会自己慢慢开'],
-  duet: ['05 / 08', '拇指和食指捏一下（在花上），释放它'],
-  pinch: ['06 / 08', '手离开花带，张开手掌左右一划——换一种花'],
-  grab: ['07 / 08', '手离开花带，张开手掌左右一划——换一种花'],
-  swipe: ['08 / 08', '手不在花上时握拳，整枝合拢'],
-  fist: ['全部学会', '八个动作都会了 · 点右下角 ? 随时回看'],
+  near: ['02 / 11', '张开手停在花上 0.1 秒就抓住了：左右上下移动，360° 转着看它'],
+  tap: ['03 / 11', '手掌从左到右抚过整枝（差不多齐平就行），三朵依次开'],
+  sweep: ['04 / 11', '两只手各压住一端，中间那朵会自己慢慢开'],
+  duet: ['05 / 11', '拇指和食指捏一下（在花上），释放它'],
+  pinch: ['06 / 11', '花开着的时候再捏一下，会浮出今日花语'],
+  grab: ['07 / 11', '手离开花带，张开手掌左右一划——换一种花'],
+  swipe: ['08 / 11', '手不在花上时握拳，整枝合拢'],
+  fist: ['09 / 11', '抓住一朵别动，右上角环满 2 秒——换季'],
+  oracle: ['10 / 11', '两只手同时捏一下，比个心试试'],
+  season: ['11 / 11', '两只手同时捏一下，比个心试试'],
+  heart: ['全部学会', '十一个动作都会了 · 点右下角 ? 随时回看'],
 };
 
 const tutorial = {
@@ -930,10 +946,19 @@ if (el.howto) {
 }
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && tutorial.isOpen()) tutorial.hide();
+  if (e.key === 'Escape' && state.oracleOpen) closeOracle();
   if ((e.key === '?' || e.key === '/' || e.key === 'h') && !e.metaKey && !e.ctrlKey) {
     tutorial.isOpen() ? tutorial.hide() : tutorial.show();
   }
 });
+
+/* v4：花语卡可以点关闭 / 点背景收起 */
+if (el.oracleClose) el.oracleClose.addEventListener('click', () => closeOracle());
+if (el.oracle) {
+  el.oracle.addEventListener('click', (e) => {
+    if (e.target === el.oracle) closeOracle();
+  });
+}
 
 /* ── 主循环 ─────────────────────────────────────────────── */
 let rafId = null;
@@ -1014,6 +1039,9 @@ function tick(now) {
 
   /* ── v3：捏一下 = 释放 ──────────────────────────────── */
   updatePinch(hands, now);
+
+  /* ── v4：四季流转（抓住不放 → 换季） ──────────────────── */
+  updateSeason(dt);
 
   /* ── v3：张开手在花带外横滑 = 换一种花 ──────────────── */
   updateSwipe(hands, now);
@@ -1151,6 +1179,11 @@ function updatePinch(hands, now) {
   const found = detectPinch(pinchable, PINCH, pinch.prev);
   state.pinchFound = found;
   state.pinchSince = [...pinch.since.entries()];
+
+  // v4 比心：两只手同时捏（不要求靠近花）→ 心形光点
+  const pinchingNow = found.filter((p) => p.on);
+  if (pinchingNow.length >= 2) tryHeart(now);
+
   const seen = new Set();
   for (const p of found) {
     seen.add(p.slot);
@@ -1168,10 +1201,20 @@ function updatePinch(hands, now) {
       const f = nearestFlower(p.tip, PINCH.radius);
       if (f >= 0 && !grab.on) {
         pinch.lastAt.set(f, now);
-        flora.release(f, { now });
-        prox.hold(f, now);
-        tutorial.mark('pinch');
-        toast(`释放 · 第 ${f + 1} 朵`);
+        // v4：花已经开着 → 弹出花语卡；还是花苞 → 原来的「释放开花」
+        if (flora.bloomOf(f) > 0.55) {
+          toggleOracle(f);
+          prox.hold(f, now);
+          tutorial.mark('oracle');
+        } else {
+          flora.release(f, { now });
+          prox.hold(f, now);
+          tutorial.mark('pinch');
+          toast(`释放 · 第 ${f + 1} 朵`);
+        }
+      } else if (f < 0 && state.oracleOpen) {
+        // 花语卡开着的时候，随手捏一下 = 收起
+        closeOracle();
       }
     }
     pinch.prev[p.slot] = p.on;
@@ -1261,6 +1304,140 @@ function startGrab(hand, f, now) {
   tutorial.mark('grab');
   toast(`抓住第 ${f + 1} 朵 · 手左右/上下移动转它 · 握拳放下`, 3600);
   void a;
+}
+
+/* ══════════════════════════════════════════════════════════
+   v4 三个玩法：四季流转 / 花语卡 / 比心彩蛋
+   设计原则：全部复用已有手势（抓住、捏合），不新增要学的新动作。
+   ══════════════════════════════════════════════════════════ */
+
+const season = {
+  index: 0,
+  hold: 0, // 抓住不动的累计秒数
+  bar: 0, // HUD 进度（0–1，带一点回落）
+};
+
+const heartFx = new HeartBurst(typeof document !== 'undefined' ? el.app : null);
+let heartLastAt = -1e9;
+
+/** 开局把季节设成第 0 季（春），并写进 HUD */
+function initSeason() {
+  const s = SEASONS[0];
+  season.index = 0;
+  flora.setTint(s.tint, { immediate: true });
+  state.season = 0;
+  if (el.veil) {
+    el.veil.style.background = s.veil;
+    el.veil.style.opacity = '1';
+  }
+  if (el.seasonLabel) el.seasonLabel.textContent = s.label;
+  if (el.seasonBar) el.seasonBar.style.width = '0%';
+  if (el.oracleSeason) el.oracleSeason.textContent = s.en;
+}
+
+/** 换季：颜色乘数 + 色雾 + HUD 文案，全部走渐变 */
+function setSeason(i, { announce = true } = {}) {
+  season.index = ((i % SEASONS.length) + SEASONS.length) % SEASONS.length;
+  const s = SEASONS[season.index];
+  flora.setTint(s.tint);
+  state.season = season.index;
+  if (el.veil) el.veil.style.background = s.veil;
+  if (el.seasonLabel) el.seasonLabel.textContent = s.label;
+  if (el.oracleSeason) el.oracleSeason.textContent = s.en;
+  if (announce) toast(`${s.label} · ${s.line}`, 2800);
+}
+
+/** 每帧：抓住花不动就累计，满 SEASON_HOLD 秒进下一季；松手回落 */
+function updateSeason(dt) {
+  if (grab.on) {
+    season.hold += dt;
+    if (season.hold >= SEASON_HOLD) {
+      season.hold = 0;
+      setSeason(season.index + 1);
+    }
+  } else if (season.hold > 0) {
+    season.hold = Math.max(0, season.hold - dt * 2.4);
+  }
+  const want = grab.on ? Math.min(1, season.hold / SEASON_HOLD) : 0;
+  season.bar += (want - season.bar) * Math.min(1, dt * 10);
+  if (el.seasonBar) el.seasonBar.style.width = `${(season.bar * 100).toFixed(1)}%`;
+}
+
+/* ── 花语卡 ─────────────────────────────────────────────── */
+
+/** 同一天同一朵抽到同一条（不用随机，录屏重开也一样） */
+function dayIndex() {
+  const d = new Date();
+  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+}
+
+function oracleEntry(flowerIndex) {
+  const key = SEASONS[season.index].key;
+  const lines = ORACLE_LINES[key] || ORACLE_LINES.spring;
+  return lines[(dayIndex() + flowerIndex) % lines.length];
+}
+
+function openOracle(flowerIndex) {
+  if (!el.oracle) return;
+  const entry = oracleEntry(flowerIndex);
+  const s = SEASONS[season.index];
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  if (el.oracleWord) el.oracleWord.textContent = entry.word;
+  if (el.oraclePoem) el.oraclePoem.textContent = entry.poem;
+  if (el.oracleFlower) el.oracleFlower.textContent = `${entry.flower} · 第 ${flowerIndex + 1} 朵`;
+  if (el.oracleDate) el.oracleDate.textContent = `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+  if (el.oracleSeason) el.oracleSeason.textContent = s.en;
+  el.oracle.hidden = false;
+  el.oracle.setAttribute('aria-hidden', 'false');
+  // 强制一次样式计算再上 class，避免「同帧加 class 过渡不触发」也避免闪一帧
+  void el.oracle.offsetWidth;
+  el.oracle.classList.add('is-open');
+  state.oracleOpen = true;
+  state.oracleFlower = flowerIndex;
+}
+
+function closeOracle({ silent = false } = {}) {
+  if (!el.oracle || !state.oracleOpen) return;
+  state.oracleOpen = false;
+  el.oracle.classList.remove('is-open');
+  el.oracle.setAttribute('aria-hidden', 'true');
+  const hide = () => {
+    if (!state.oracleOpen) el.oracle.hidden = true;
+  };
+  if (REDUCED) hide();
+  else setTimeout(hide, 420);
+  if (!silent) toast('花签收起', 1400);
+}
+
+function toggleOracle(flowerIndex) {
+  if (state.oracleOpen) {
+    closeOracle();
+    return;
+  }
+  openOracle(flowerIndex);
+}
+
+/* ── 比心彩蛋 ───────────────────────────────────────────── */
+
+/** 双手同时捏合 → 花心炸出一圈心形光点（8 秒内只放一次，免得抖） */
+function tryHeart(now) {
+  if (now - heartLastAt < 8000) return false;
+  heartLastAt = now;
+  const a = FLOWER_ANCHORS[1] || FLOWER_ANCHORS[0];
+  heartFx.play({
+    x: a.x,
+    y: a.y * 0.92,
+    color: SEASONS[season.index].key === 'winter' ? '#c9d6ff' : '#ffd2dc',
+    scale: 1.15,
+  });
+  // 花心亮点 + 位置反馈
+  flora.openFlower(1, { now });
+  prox.hold(1, now, 1.6);
+  toast('心意已收到 · 比心成功', 2600);
+  state.heartCount = (state.heartCount || 0) + 1;
+  tutorial.mark('heart');
+  return true;
 }
 
 function endGrab(reason) {
@@ -1627,6 +1804,9 @@ function boot() {
     enterPointerMode('');
   }
 
+  // v4：开局落在春季，把色雾 / HUD / 颜色乘数都对齐
+  initSeason();
+
   rafId = requestAnimationFrame(tick);
 
   // 测试 / 调试接口：把假 landmark 直接灌进同一条流水线
@@ -1744,6 +1924,44 @@ function boot() {
         }
       }
       return out;
+    },
+    /* v4：四季 / 花语卡 / 比心 —— 自测和手动验收都用这几个 */
+    season() {
+      return {
+        index: season.index,
+        key: SEASONS[season.index].key,
+        label: SEASONS[season.index].label,
+        hold: +season.hold.toFixed(2),
+        bar: +season.bar.toFixed(3),
+        tint: flora.uniforms.uTint.value.toArray().map((v) => +v.toFixed(3)),
+        veil: el.veil ? el.veil.style.background.slice(0, 40) : '',
+      };
+    },
+    setSeason(i) {
+      setSeason(i, { announce: false });
+      return this.season();
+    },
+    oracleOpen() {
+      return !!(el.oracle && !el.oracle.hidden && el.oracle.classList.contains('is-open'));
+    },
+    oracleText() {
+      if (!el.oracle) return null;
+      return {
+        open: this.oracleOpen(),
+        word: el.oracleWord ? el.oracleWord.textContent : '',
+        poem: el.oraclePoem ? el.oraclePoem.textContent : '',
+        flower: el.oracleFlower ? el.oracleFlower.textContent : '',
+        date: el.oracleDate ? el.oracleDate.textContent : '',
+      };
+    },
+    openOracle,
+    closeOracle,
+    heart() {
+      return { count: state.heartCount || 0, canvas: !!document.querySelector('.heart-fx') };
+    },
+    fireHeart() {
+      tryHeart(performance.now());
+      return this.heart();
     },
     pinchDebug() {
       return {

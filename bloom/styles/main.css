@@ -1,4 +1,4 @@
-﻿/* ────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────
    指尖生花 / BLOOM AT YOUR FINGERTIPS
    styles/main.css — 暗夜温室的编辑风 UI
    细线等宽小字贴四角，大量暗部留白，冷月白只做点缀。
@@ -1118,4 +1118,212 @@ body {
   .gate-inner {
     animation: none;
   }
+}
+/* ══════════════════════════════════════════════════════════
+   v4 新增：季节色雾 / 季节指示 / 花语卡 / 比心粒子层
+   全部沿用既有 HUD 语言：等宽小字、发丝线、无圆角卡片投阴影。
+   ══════════════════════════════════════════════════════════ */
+
+/* 季节色雾：只在四角有颜色，中心永远是花 */
+.veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 900ms ease, background 900ms ease;
+  mix-blend-mode: screen;
+}
+
+/* 右上角季节指示：小圆点 + 名称 + 一条推进细线 */
+.season-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: var(--micro);
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+  animation: season-in 420ms ease both;
+}
+
+.season-line .season-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 8px currentColor;
+}
+
+.season-line .season-progress {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.season-line .season-progress > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: var(--ink);
+  transition: width 120ms linear;
+}
+
+@keyframes season-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── 花语卡 ───────────────────────────────────────────── */
+.oracle {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--pad) * 2);
+  background: radial-gradient(90% 70% at 50% 50%, rgba(4, 3, 7, 0.42) 0%, rgba(4, 3, 7, 0.72) 60%, rgba(3, 2, 5, 0.86) 100%);
+  opacity: 0;
+  transition: opacity 380ms ease;
+  touch-action: pan-y;
+}
+
+.oracle.is-open { opacity: 1; }
+
+.oracle-card {
+  position: relative;
+  width: min(78vw, 460px);
+  max-width: 460px;
+  padding: 26px 24px 20px;
+  border: 1px solid rgba(255, 241, 230, 0.16);
+  background:
+    linear-gradient(180deg, rgba(20, 15, 24, 0.82) 0%, rgba(10, 8, 14, 0.9) 100%);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  color: var(--ink);
+  text-align: left;
+  transform: translateY(10px) scale(0.985);
+  transition: transform 420ms cubic-bezier(0.22, 0.86, 0.2, 1);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62);
+}
+
+.oracle.is-open .oracle-card { transform: none; }
+
+/* 卡面四角的发丝短角，和 HUD 的角标同一套语言 */
+.oracle-card::before,
+.oracle-card::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(255, 241, 230, 0.34);
+}
+.oracle-card::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.oracle-card::after { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
+
+.oracle-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--micro);
+  letter-spacing: 0.24em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+
+.oracle-sep { opacity: 0.5; }
+
+.oracle-mark {
+  margin: 18px 0 10px;
+  width: 34px;
+  height: 34px;
+  color: rgba(255, 143, 163, 0.9);
+}
+
+.oracle-mark svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.85;
+}
+
+.oracle-word {
+  margin: 0;
+  font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+  font-size: clamp(40px, 9vw, 64px);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: 0.08em;
+  color: #fff3ee;
+  text-shadow: 0 0 26px rgba(255, 143, 163, 0.34);
+}
+
+.oracle-poem {
+  margin: 12px 0 0;
+  font-size: var(--small);
+  line-height: 1.85;
+  letter-spacing: 0.04em;
+  color: rgba(255, 241, 230, 0.8);
+}
+
+.oracle-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 241, 230, 0.12);
+  font-size: var(--micro);
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+}
+
+.oracle-close {
+  margin-top: 14px;
+  padding: 8px 0;
+  width: 100%;
+  border: 1px solid rgba(255, 241, 230, 0.16);
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: var(--micro);
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  min-height: 40px;
+  transition: border-color 220ms ease, color 220ms ease;
+}
+
+.oracle-close:hover,
+.oracle-close:focus-visible {
+  border-color: rgba(255, 241, 230, 0.36);
+  color: var(--ink);
+}
+
+/* ── 比心粒子层 ───────────────────────────────────────── */
+.heart-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* 小屏：花语卡窄一点，字小一点，别顶到安全区 */
+@media (max-width: 560px) {
+  .oracle { padding: calc(var(--pad) * 1.4); }
+  .oracle-card { width: min(86vw, 380px); padding: 22px 18px 16px; }
+}
+
+/* 横屏矮屏：卡片改横向紧凑，避免盖满 */
+@media (max-height: 470px) {
+  .oracle-card { width: min(64vw, 420px); padding: 16px 18px 12px; }
+  .oracle-word { font-size: clamp(30px, 5.4vw, 44px); }
+  .oracle-poem { font-size: 12px; line-height: 1.6; }
+  .oracle-mark { display: none; }
 }

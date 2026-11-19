@@ -19,6 +19,8 @@
 <body>
 <main id="app">
   <canvas id="stage" aria-hidden="true"></canvas>
+  <!-- 季节色雾：极淡的一层，换季时只改它的 background（v4） -->
+  <div id="veil" class="veil" aria-hidden="true"></div>
   <canvas id="debug" aria-hidden="true" hidden></canvas>
   <!-- 手部骨架：认到的 21 个点画成细线和小点，叠在画面上 -->
   <canvas id="hand-skel" aria-hidden="true"></canvas>
@@ -45,6 +47,11 @@
       </div>
       <div class="mode-note" id="mode-note"></div>
       <div class="model-line" id="model-line">MODEL 01</div>
+      <div class="season-line" id="season-line" hidden>
+        <span class="season-dot"></span>
+        <span id="season-label">春 · 樱</span>
+        <span class="season-progress"><i id="season-bar"></i></span>
+      </div>
     </div>
 
     <div class="corner bl">
@@ -72,6 +79,9 @@
         <li data-k="grab"><i>06</i><span>抓住·转着看</span></li>
         <li data-k="swipe"><i>07</i><span>横滑·换一种花</span></li>
         <li data-k="fist"><i>08</i><span>握拳·收拢</span></li>
+        <li data-k="oracle"><i>09</i><span>捏合·花语卡</span></li>
+        <li data-k="season"><i>10</i><span>按住·换季</span></li>
+        <li data-k="heart"><i>11</i><span>双手捏合·比心</span></li>
       </ol>
     </div>
 
@@ -130,6 +140,27 @@
 
   <div id="toast" class="toast" hidden></div>
 
+  <!-- ── 花语卡：捏合一朵满开的花 → 浮出一张花签 ─────────────── -->
+  <section id="oracle" class="oracle" hidden aria-hidden="true">
+    <div class="oracle-card" role="dialog" aria-modal="false" aria-labelledby="oracle-word">
+      <div class="oracle-kicker">
+        <span id="oracle-season">SPRING</span>
+        <span class="oracle-sep">·</span>
+        <span>今日花语</span>
+      </div>
+      <div class="oracle-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="17.5" /><circle cx="24" cy="24" r="4" /><path d="M24 6.5v5M24 36.5v5M6.5 24h5M36.5 24h5" /></svg>
+      </div>
+      <h2 class="oracle-word" id="oracle-word">先开</h2>
+      <p class="oracle-poem" id="oracle-poem">不等天暖，先开一朵给路过的人。</p>
+      <div class="oracle-foot">
+        <span class="oracle-flower" id="oracle-flower">樱 · 第 1 朵</span>
+        <span class="oracle-date" id="oracle-date">2026.11.19</span>
+      </div>
+      <button class="oracle-close" id="btn-oracle-close" type="button" aria-label="收起">捏合或轻触收起</button>
+    </div>
+  </section>
+
   <!-- ── 「怎么玩」注释卡：画面上随时能叫出来 ───────────────── -->
   <section id="howto" class="howto" hidden>
     <div class="howto-card" role="dialog" aria-modal="true" aria-labelledby="howto-title">
@@ -143,7 +174,7 @@
         </button>
       </header>
 
-      <p class="howto-lead">把手放进画面，指尖就是你的笔。八个动作，从一朵到整枝。</p>
+      <p class="howto-lead">把手放进画面，指尖就是你的笔。十一个动作，从一朵到整枝，再到一整年。</p>
 
       <ul class="howto-grid">
         <li class="howto-item" data-k="near">
@@ -242,6 +273,38 @@
           <div class="howto-txt">
             <b>握拳 · 收拢</b>
             <span>手不在花上时握拳，整枝一起合拢；在 3D 看花里握拳是退出。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="oracle">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="5.2" y="3.6" width="13.6" height="16.8" rx="2.2" />
+            <path d="M8.6 8.4h6.8M8.6 12h6.8M8.6 15.6h4.2" />
+          </svg>
+          <div class="howto-txt">
+            <b>花语卡 · 捏一朵开满的</b>
+            <span>花开着的时候捏合，一张花签浮上来（今日花语 + 一句短诗）。再捏一下或轻触收起。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="season">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.2" stroke-dasharray="2.4 2.6" />
+            <path d="M12 3.8V8M20.2 12H16M12 20.2V16M3.8 12H8" />
+          </svg>
+          <div class="howto-txt">
+            <b>按住 · 四季流转</b>
+            <span>抓住一朵花别动，右上角的环会转；满 2 秒进下一季：春樱 → 夏白 → 秋金 → 冬蓝。花色和空气里的色雾一起变。</span>
+          </div>
+        </li>
+
+        <li class="howto-item" data-k="heart">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 20.2s-6.6-4.1-6.6-8.2a3.6 3.6 0 016.6-2 3.6 3.6 0 016.6 2c0 4.1-6.6 8.2-6.6 8.2z" />
+          </svg>
+          <div class="howto-txt">
+            <b>双手捏合 · 比心</b>
+            <span>两只手同时捏一下（不用碰到花），花心会炸出一圈心形光点。彩蛋，不会影响别的操作。</span>
           </div>
         </li>
       </ul>
