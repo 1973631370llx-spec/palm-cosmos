@@ -1,4 +1,4 @@
-/**
+﻿/**
  * main.js — 舞台、循环、输入源（摄像头 / 指针 / 演示）、HUD、调试。
  *
  * 数据流：camera.js 出 landmark → hands.js 出「手」→ interaction.js 出事件
@@ -292,6 +292,52 @@ const engine = new InteractionEngine();
 
 /* ── 输入源 ─────────────────────────────────────────────── */
 
+/* v4：指针对照模式的「虚拟手」也补一套 21 点骨架，
+   这样没有摄像头时画面里同样有一只手跟着走（不再只有看不见的判定点）。
+   坐标是「掌长 = 1」的规范手型，落地时按 S 缩放、按 8 号点对齐指尖。 */
+/* 规范手型（掌长 = 1，指尖朝 -y）：0 腕 / 1-4 拇指 / 5-8 食指 / 9-12 中指 / 13-16 无名 / 17-20 小指 */
+const VIRTUAL_PTS = (() => {
+  const p = (x, y) => ({ x, y });
+  return [
+    p(0, 0), // 0 腕
+    p(-0.42, -0.22), p(-0.62, -0.42), p(-0.78, -0.55), p(-0.9, -0.62), // 拇指 1-4
+    p(-0.32, -0.95), p(-0.36, -1.28), p(-0.38, -1.55), p(-0.4, -1.78), // 食指 5-8
+    p(0, -1.0), p(0, -1.36), p(0, -1.62), p(0, -1.86), // 中指 9-12
+    p(0.3, -0.95), p(0.33, -1.28), p(0.35, -1.55), p(0.36, -1.78), // 无名 13-16
+    p(0.58, -0.86), p(0.63, -1.1), p(0.66, -1.32), p(0.67, -1.52), // 小指 17-20
+  ];
+})();
+
+/** 握拳时每条手指往自己的 MCP 收回：1-4 收向 2，5-8 收向 5，以此类推 */
+const VIRTUAL_BASE = [2, 2, 2, 2, 2, 5, 5, 5, 5, 9, 9, 9, 9, 13, 13, 13, 13, 17, 17, 17, 17];
+const virtualBuf = [
+  Array.from({ length: 21 }, () => ({ x: 0, y: 0, z: 0 })),
+  Array.from({ length: 21 }, () => ({ x: 0, y: 0, z: 0 })),
+];
+
+function syntheticLandmarks(tip, fist, slot) {
+  const S = 150; // 掌长（px）
+  const buf = virtualBuf[slot === 1 ? 1 : 0];
+  const wx = tip.x - VIRTUAL_PTS[8].x * S;
+  const wy = tip.y - VIRTUAL_PTS[8].y * S;
+  const curl = fist ? 0.92 : 0;
+  for (let i = 0; i < 21; i += 1) {
+    const base = VIRTUAL_PTS[i];
+    let lx = base.x;
+    let ly = base.y;
+    if (curl > 0 && i >= 1) {
+      const mcp = VIRTUAL_PTS[VIRTUAL_BASE[i]];
+      lx += (mcp.x - lx) * curl;
+      ly += (mcp.y - ly) * curl;
+    }
+    const o = buf[i];
+    o.x = wx + lx * S;
+    o.y = wy + ly * S;
+    o.z = 0;
+  }
+  return buf;
+}
+
 function makeVirtualHand({ slot, tip, fist = false, score = 0.97, palmOffset = 78 }) {
   return {
     slot,
@@ -303,7 +349,8 @@ function makeVirtualHand({ slot, tip, fist = false, score = 0.97, palmOffset = 7
     fistScore: fist ? 1 : 0,
     handedness: '',
     score,
-    landmarks: null,
+    // v4：虚拟手也带 21 点，骨架叠层能画出来
+    landmarks: syntheticLandmarks(tip, fist, slot),
     worldLandmarks: null,
     lastSeenAt: 0,
   };
