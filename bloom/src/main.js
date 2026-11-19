@@ -1291,6 +1291,12 @@ function platformSwitchAction(id) {
 
 function bindDock() {
   if (!el.dockList) return;
+  // 宽屏（≥700px）直接摊开四张场景卡：用户要的就是「一眼看见、点一下就换」。
+  // 手机上收起来，把整屏让给画面，点「场景」再展开。
+  if (window.innerWidth >= 700 && window.innerHeight >= 600) {
+    el.dockList.hidden = false;
+    if (el.dockBtn) el.dockBtn.setAttribute('aria-expanded', 'true');
+  }
   for (const card of el.dockList.querySelectorAll('.dock-card')) {
     card.addEventListener('click', () => setPlatform(card.dataset.p));
   }

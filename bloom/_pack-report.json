@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-19T18:45:58.171Z",
+  "generatedAt": "2026-11-19T18:59:48.066Z",
   "node": "v24.21.0",
   "out": "dist-web",
   "policy": {
@@ -37,24 +37,24 @@
   },
   "totals": {
     "files": 41,
-    "originalBytes": 43619512,
-    "brBytes": 12829998,
-    "gzBytes": 16428697,
+    "originalBytes": 43620450,
+    "brBytes": 12830304,
+    "gzBytes": 16429035,
     "brFilesKept": 38,
     "gzFilesKept": 38,
-    "savedByBr": 30789514,
+    "savedByBr": 30790146,
     "savedPctByBr": 70.6
   },
   "groups": {
     "firstScreen": {
       "name": "first-screen",
       "files": 25,
-      "original": 1644133,
-      "br": 305104,
-      "gz": 381730,
+      "original": 1644493,
+      "br": 305253,
+      "gz": 381889,
       "brFiles": 25,
-      "saved": 1339029,
-      "savedPct": 81.44286380724674,
+      "saved": 1339240,
+      "savedPct": 81.43786565221014,
       "meaning": "首屏关键路径：index.html + src/*.js + three.module.js + addons"
     },
     "heavy": {
@@ -71,22 +71,22 @@
     "rest": {
       "name": "rest",
       "files": 7,
-      "original": 147734,
-      "br": 57929,
-      "gz": 64045,
+      "original": 148312,
+      "br": 58086,
+      "gz": 64224,
       "brFiles": 5,
-      "saved": 89805,
-      "savedPct": 60.788308717018424
+      "saved": 90226,
+      "savedPct": 60.83526619558768
     },
     "all": {
       "name": "all",
       "files": 41,
-      "original": 43619512,
-      "br": 12829998,
-      "gz": 16428697,
+      "original": 43620450,
+      "br": 12830304,
+      "gz": 16429035,
       "brFiles": 38,
-      "saved": 30789514,
-      "savedPct": 70.58656227057286
+      "saved": 30790146,
+      "savedPct": 70.58649326176139
     }
   },
   "files": [
@@ -158,9 +158,9 @@
     },
     {
       "path": "src/main.js",
-      "original": 94161,
-      "br": 25434,
-      "gz": 30599
+      "original": 94521,
+      "br": 25583,
+      "gz": 30758
     },
     {
       "path": "src/perf.js",
@@ -212,9 +212,9 @@
     },
     {
       "path": "styles/main.css",
-      "original": 39436,
-      "br": 8080,
-      "gz": 9640
+      "original": 40014,
+      "br": 8237,
+      "gz": 9819
     },
     {
       "path": "vendor/mediapipe/hand_landmarker.task",

@@ -1516,8 +1516,16 @@ body {
 }
 
 @media (max-height: 470px) {
-  .dock-list { flex-direction: row; width: auto; }
-  .dock-card { width: 132px; }
+  /* 横屏只有 390px 高：四张卡摊成 2×2，宽度跟着视口走，别顶出屏幕 */
+  .dock-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: calc(100vw - 2 * var(--pad) - 12px);
+    max-width: calc(100vw - 2 * var(--pad) - 12px);
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .dock-card { flex: 1 1 46%; width: auto; min-width: 0; }
   .dock-card span { display: none; }
 }
 
@@ -1707,4 +1715,13 @@ body:has(#howto.on) .dock {
   .oracle-card[data-tpl='2'] { padding-right: 26px; }
   .oracle-card[data-tpl='2'] .oracle-seal { bottom: 48px; left: 18px; }
   .oracle-card[data-tpl='1'] .oracle-word { font-size: clamp(38px, 11vw, 58px); }
+}
+
+/* 横屏手机（高度很矮）：场景坞摊成一行，宽度必须收住，否则会顶出屏幕右边 */
+@media (max-width: 1000px) and (max-height: 470px) {
+  .dock-list {
+    max-width: calc(100vw - 2 * var(--pad) - 8px);
+    overflow-x: auto;
+  }
+  .dock-card { min-width: 118px; }
 }
