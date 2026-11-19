@@ -52,31 +52,47 @@ const LINK_GAIN = new Float32Array([
  * ══════════════════════════════════════════════════════════════════════ */
 
 export const SKELETON_STYLE = Object.freeze({
-  // 骨骼线：细，指尖略粗，握拳再粗一丁点 → 1.0–1.54 CSS px
-  boneW: 1.0,
-  boneWTip: 0.34, // 指尖相对腕部的加粗量
-  fistW: 0.2, // 握拳额外加粗
-  boneA: 0.24, // 主线基础不透明度（乘 link 亮度系数 0.72–1.0）
+  // 骨骼线：细，指尖略粗，握拳再粗一丁点 → 1.3–1.9 CSS px
+  boneW: 1.3,
+  boneWTip: 0.4, // 指尖相对腕部的加粗量
+  fistW: 0.24, // 握拳额外加粗
+  boneA: 0.44, // 主线基础不透明度（乘 link 亮度系数 0.72–1.0）
   linkAFloor: 0.72,
   linkASpan: 0.28,
-  // 关节小点（直径 1.56–2.48 CSS px）
-  dotR: 0.78, // 普通关节半径
-  dotRTip: 0.95, // 其余指尖
-  dotRAccent: 1.15, // 腕 0 / 拇指尖 4 / 食指尖 8
-  dotA: 0.22,
-  dotAAccent: 0.34,
+  // 关节小点（直径 1.9–3.2 CSS px）
+  dotR: 0.95, // 普通关节半径
+  dotRTip: 1.18, // 其余指尖
+  dotRAccent: 1.5, // 腕 0 / 拇指尖 4 / 食指尖 8
+  dotA: 0.36,
+  dotAAccent: 0.52,
   // 微光（lighter 一层，压得很低）
-  glowW: 5.2,
-  glowA: 0.05,
-  glowHaloR: 5.4,
-  glowHaloBoost: 1.3, // 三个强调点的软光比线略强
+  glowW: 7.6,
+  glowA: 0.105,
+  glowHaloR: 7.2,
+  glowHaloBoost: 1.35, // 三个强调点的软光比线略强
   glowGlowMul: 0.42, // 捏合环的微光相对环实线的倍数
+  // 掌心轮廓（新）：淡淡一圈掌面，让"手"整体读得出来
+  palmA: 0.1, // 掌面填充
+  palmEdgeA: 0.5, // 掌缘描边（乘 boneA）
+  palmEdgeW: 1.1,
+  // 指尖光晕（新）：五个指尖各一团软光，指头在哪一眼能看到
+  tipHaloR: 11.5,
+  tipHaloA: 0.11,
+  // 捏合连线（新）：拇指尖 ↔ 食指尖的一根软线，捏的过程可视化
+  pinchLinkA: 0.34,
+  pinchLinkW: 1.0,
+  // 手势标签（新）：掌心旁边一行等宽小字（OPEN / PINCH / FIST）
+  labelA: 0.62,
+  labelSize: 10.5,
+  labelGap: 14,
+  // 显示平滑：只影响这层叠画，不影响判定（判定用原始点）
+  smooth: 0.42,
   // 待机（held：手已离开画面，位置是旧值）
   heldA: 0.35,
   // 捏合环
-  ringW: 1.15,
-  ringAFar: 0.1,
-  ringANear: 0.26,
+  ringW: 1.3,
+  ringAFar: 0.16,
+  ringANear: 0.4,
   ringR: [9, 32], // 捏住 → 9px，张开 → 32px（再按手的大小缩一点）
   ringPalmRef: 300, // 手越大环越大：palmPx / 300，夹到 0.8–1.7
   ringSizeClamp: [0.8, 1.7],
@@ -85,11 +101,11 @@ export const SKELETON_STYLE = Object.freeze({
   ringGoldA: 0.22, // 捏紧时环心那一点暖金
   // 拖尾（指尖 8 的极短历史）
   trailN: 7,
-  trailA: 0.09,
+  trailA: 0.13,
   trailR: [1.5, 0.5],
   trailJump: 140, // 位置跳变（换手 / 重捕）→ 拖尾断开
   // 亮度预算：单只手同一点的最坏叠加上限
-  budget: 0.7,
+  budget: 0.72,
 });
 
 const RAMP_STEPS = 24; // fist 0→1 的色阶数（24 阶肉眼看不出台阶）
@@ -99,6 +115,8 @@ const GRAB_RING_COLOR = 'rgb(184, 198, 255)';
 const TRAIL_N = SKELETON_STYLE.trailN;
 const TRAIL_JUMP_SQ = SKELETON_STYLE.trailJump * SKELETON_STYLE.trailJump;
 const TRAIL_MIN_MOVE_SQ = 0.36; // 指尖移动 < 0.6px 就不记新点
+/** 五个指尖：拇指 4 / 食指 8 / 中指 12 / 无名指 16 / 小指 20 */
+const TIPS = new Int8Array([4, 8, 12, 16, 20]);
 
 /* ══════════════════════════════════════════════════════════════════════
  * 三、颜色：模块加载期一次性生成 rgb() 字符串
@@ -142,6 +160,10 @@ const GOLD = cssRgb(...hexToRgb(COLOR.gold));
 function newSlot() {
   return {
     xy: new Float32Array(42),
+    // v4：显示平滑用（只影响这层叠画，判定仍用原始点）
+    sx: new Float32Array(42),
+    sy: new Float32Array(42),
+    smoothPrimed: false,
     ok: new Uint8Array(21),
     trail: new Float32Array(TRAIL_N * 2),
     trailHead: 0,
@@ -154,6 +176,8 @@ function newSlot() {
 
 /** render 的第三参缺省值（避免每帧 ?? {}） */
 const NO_FRAME = Object.freeze({});
+/** 没有手势标签时的占位 */
+const NO_LABELS = Object.freeze([]);
 
 /* ══════════════════════════════════════════════════════════════════════
  * 五、类
@@ -236,6 +260,7 @@ export class HandSkeleton {
     const time = Number.isFinite(f.time) ? f.time : 0;
     const opacity = Number.isFinite(f.opacity) ? clamp01(f.opacity) : 1;
     const grabRing = f.grabRing || null;
+    const labels = Array.isArray(f.labels) ? f.labels : NO_LABELS;
 
     // 安全退出：没手 / 没映射 / 整体透明 → 清空
     if (
@@ -287,6 +312,9 @@ export class HandSkeleton {
 
       const slot = this.slots[hi];
       // ── 投影：一律走调用方的 project（舞台坐标 → CSS 像素）──────
+      // v4：叠画这一层再做一次轻平滑，手看起来"黏"在指纹上而不是抖。
+      // 只改显示坐标，判定用的仍然是原始 landmark。
+      const sm = SKELETON_STYLE.smooth;
       let valid = 0;
       for (let i = 0; i < 21; i += 1) {
         const lm = lms[i];
@@ -299,14 +327,25 @@ export class HandSkeleton {
           slot.ok[i] = 0;
           continue;
         }
-        slot.xy[i * 2] = p.x;
-        slot.xy[i * 2 + 1] = p.y;
+        const px = p.x;
+        const py = p.y;
+        if (!slot.smoothPrimed || Math.hypot(px - slot.sx[i * 2], py - slot.sx[i * 2 + 1]) > 220) {
+          // 首帧 / 换手 / 重捕：直接落位，别把旧位置拖过来
+          slot.sx[i * 2] = px;
+          slot.sx[i * 2 + 1] = py;
+        } else {
+          slot.sx[i * 2] += (px - slot.sx[i * 2]) * sm;
+          slot.sx[i * 2 + 1] += (py - slot.sx[i * 2 + 1]) * sm;
+        }
+        slot.xy[i * 2] = slot.sx[i * 2];
+        slot.xy[i * 2 + 1] = slot.sx[i * 2 + 1];
         slot.ok[i] = 1;
         valid += 1;
       }
+      slot.smoothPrimed = true;
       if (valid < 2) continue;
 
-      this.drawHand(ctx, hand, slot, hi, time, opacity, gain);
+      this.drawHand(ctx, hand, slot, hi, time, opacity, gain, labels[hi]);
       drawn += 1;
     }
 
@@ -357,7 +396,7 @@ export class HandSkeleton {
    * @param {number} opacity 调用方整体不透明度
    * @param {number} gain 亮度预算系数
    */
-  drawHand(ctx, hand, slot, hi, time, opacity, gain) {
+  drawHand(ctx, hand, slot, hi, time, opacity, gain, label) {
     const S = SKELETON_STYLE;
     const fist = Number.isFinite(hand.fist) ? clamp01(hand.fist) : 0;
     const held = hand.held === true;
@@ -371,6 +410,26 @@ export class HandSkeleton {
     // 待机（held）：整体降到 ~35%，并且不连线、只在弦上打点
     const handA = (held ? S.heldA : 1) * gain;
     const baseA = opacity * handA;
+
+    // ── 掌面（v4 新增）：0-5-9-13-17 围起来的掌形，淡填充 + 掌缘描边 ──
+    // 有了这一层，"这是一只手"比"一堆点"读得快；不影响任何点位判定。
+    if (!held && slot.ok[0] && slot.ok[5] && slot.ok[9] && slot.ok[13] && slot.ok[17]) {
+      const PATH = [0, 5, 9, 13, 17];
+      ctx.fillStyle = boneColor;
+      ctx.globalAlpha = clamp01(baseA * S.palmA);
+      ctx.beginPath();
+      ctx.moveTo(slot.xy[0], slot.xy[1]);
+      for (let k = 1; k < PATH.length; k += 1) {
+        const i = PATH[k];
+        ctx.lineTo(slot.xy[i * 2], slot.xy[i * 2 + 1]);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = clamp01(baseA * S.boneA * S.palmEdgeA);
+      ctx.strokeStyle = boneColor;
+      ctx.lineWidth = S.palmEdgeW;
+      ctx.stroke();
+    }
 
     // ── 指尖拖尾（lighter，压在骨线下面）───────────────────────────
     // 整条拖尾只 fill 一次：同一条路径内的重叠是并集，不会因为手指停在原地
@@ -420,6 +479,19 @@ export class HandSkeleton {
           const y = slot.xy[i * 2 + 1];
           ctx.moveTo(x + S.glowHaloR, y);
           ctx.arc(x, y, S.glowHaloR, 0, TAU);
+        }
+        ctx.fill();
+
+        // v4：五个指尖各一团更大更软的 halo —— 手指在哪，一眼就能看到
+        ctx.globalAlpha = clamp01(baseA * S.tipHaloA * breath);
+        ctx.beginPath();
+        for (let k = 0; k < 5; k += 1) {
+          const i = TIPS[k];
+          if (!slot.ok[i]) continue;
+          const x = slot.xy[i * 2];
+          const y = slot.xy[i * 2 + 1];
+          ctx.moveTo(x + S.tipHaloR, y);
+          ctx.arc(x, y, S.tipHaloR, 0, TAU);
         }
         ctx.fill();
       }
@@ -539,6 +611,34 @@ export class HandSkeleton {
       ctx.beginPath();
       ctx.arc(cx, cy, lerp(0.9, 1.7, k), 0, TAU);
       ctx.fill();
+    }
+
+    // ── 捏合连线（v4）：拇指尖 ↔ 食指尖一根软线，把"捏"的过程画出来 ──
+    if (!held && pinch > 0.04) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = ringColor;
+      ctx.globalAlpha = clamp01(baseA * S.pinchLinkA * pinch);
+      ctx.lineWidth = S.pinchLinkW;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(ix, iy);
+      ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // ── 手势标签（v4）：掌心旁一行等宽小字，让"识别到了什么"看得见 ──
+    if (label && !held && slot.ok[0] && slot.ok[9]) {
+      const mx = (slot.xy[0] + slot.xy[18]) * 0.5; // 腕 → 中指根 的中点 = 掌心
+      const my = (slot.xy[1] + slot.xy[19]) * 0.5;
+      ctx.font = `${S.labelSize}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = ringColor;
+      ctx.globalAlpha = clamp01(baseA * S.labelA);
+      ctx.fillText(label, mx, my - S.labelGap);
+      ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
+      ctx.globalAlpha = 1;
     }
   }
 

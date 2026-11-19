@@ -42,6 +42,15 @@ import { HandSkeleton } from './handskeleton.js';
 import { Backdrop } from './backdrop.js';
 import * as CAM from './camera.js';
 
+/* v4：手势标签（画在掌心旁边的那行小字） */
+const POSE_LABEL = Object.freeze({
+  open: 'OPEN 张开',
+  point: 'POINT 指',
+  pinch: 'PINCH 捏',
+  fist: 'FIST 握拳',
+  other: 'HAND',
+});
+
 const params = new URLSearchParams(location.search);
 const FLAG_DEBUG = params.has('debug');
 const FLAG_DEMO = params.has('demo');
@@ -1104,6 +1113,8 @@ function tick(now) {
         time: now / 1000,
         opacity: REDUCED ? 0.7 : 1,
         grabRing: ring,
+        // v4：把当前手势写到掌心旁边（视觉捕捉的"回执"）
+        labels: hands.map((h) => POSE_LABEL[h.pose && h.pose.pose] || ''),
       });
     } catch (e) {
       if (!state.skelError) {
