@@ -426,7 +426,7 @@ export function createScene(ctx) {
       return {
         firstPerson: state.firstPerson,
         warp: +state.warp.toFixed(2),
-        grabbed: state.grabbed ? 1 : 0,
+        grabbed: state.grabbed >= 0 ? 1 : 0,
         warps: buf.warps,
         grabs: buf.grabs,
         taps: buf.taps,
