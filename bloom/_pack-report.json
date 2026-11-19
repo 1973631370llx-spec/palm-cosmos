@@ -1,0 +1,340 @@
+{
+  "generatedAt": "2026-11-19T17:35:05.047Z",
+  "node": "v24.21.0",
+  "out": "dist-web",
+  "policy": {
+    "brotliQuality": 11,
+    "gzipLevel": 9,
+    "keepOnlyIfSmallerThan": "95% of original",
+    "compressedExt": [
+      ".js",
+      ".mjs",
+      ".html",
+      ".css",
+      ".json",
+      ".wasm",
+      ".task"
+    ],
+    "copied": [
+      "index.html",
+      "README.md",
+      "server.mjs",
+      "src",
+      "styles",
+      "vendor"
+    ],
+    "notCopied": [
+      "dist",
+      "shots",
+      "cert",
+      "node_modules",
+      ".git",
+      ".vscode",
+      ".idea",
+      "tools (除非 --keep-tools)",
+      "*.log"
+    ]
+  },
+  "totals": {
+    "files": 41,
+    "originalBytes": 43612919,
+    "brBytes": 12826806,
+    "gzBytes": 16425313,
+    "brFilesKept": 38,
+    "gzFilesKept": 38,
+    "savedByBr": 30786113,
+    "savedPctByBr": 70.6
+  },
+  "groups": {
+    "firstScreen": {
+      "name": "first-screen",
+      "files": 25,
+      "original": 1642935,
+      "br": 304734,
+      "gz": 381262,
+      "brFiles": 25,
+      "saved": 1338201,
+      "savedPct": 81.45185293392618,
+      "meaning": "首屏关键路径：index.html + src/*.js + three.module.js + addons"
+    },
+    "heavy": {
+      "name": "heavy/mediapipe",
+      "files": 9,
+      "original": 41827645,
+      "br": 12466965,
+      "gz": 15982922,
+      "brFiles": 8,
+      "saved": 29360680,
+      "savedPct": 70.19443719578284,
+      "meaning": "重资产：vendor/mediapipe/**（开摄像头才加载）"
+    },
+    "rest": {
+      "name": "rest",
+      "files": 7,
+      "original": 142339,
+      "br": 55107,
+      "gz": 61129,
+      "brFiles": 5,
+      "saved": 87232,
+      "savedPct": 61.284679532664974
+    },
+    "all": {
+      "name": "all",
+      "files": 41,
+      "original": 43612919,
+      "br": 12826806,
+      "gz": 16425313,
+      "brFiles": 38,
+      "saved": 30786113,
+      "savedPct": 70.58943474982723
+    }
+  },
+  "files": [
+    {
+      "path": "index.html",
+      "original": 17231,
+      "br": 4343,
+      "gz": 5354
+    },
+    {
+      "path": "README.md",
+      "original": 17306,
+      "br": null,
+      "gz": null
+    },
+    {
+      "path": "server.mjs",
+      "original": 15634,
+      "br": 5333,
+      "gz": 6387
+    },
+    {
+      "path": "src/backdrop.js",
+      "original": 26194,
+      "br": 9155,
+      "gz": 10720
+    },
+    {
+      "path": "src/camera.js",
+      "original": 7417,
+      "br": 2456,
+      "gz": 3075
+    },
+    {
+      "path": "src/config.js",
+      "original": 10789,
+      "br": 3989,
+      "gz": 4769
+    },
+    {
+      "path": "src/flower.js",
+      "original": 43955,
+      "br": 11216,
+      "gz": 12999
+    },
+    {
+      "path": "src/hands.js",
+      "original": 13480,
+      "br": 4075,
+      "gz": 4802
+    },
+    {
+      "path": "src/handskeleton.js",
+      "original": 28978,
+      "br": 8569,
+      "gz": 10063
+    },
+    {
+      "path": "src/heart.js",
+      "original": 7655,
+      "br": 2718,
+      "gz": 3254
+    },
+    {
+      "path": "src/interaction.js",
+      "original": 24646,
+      "br": 7169,
+      "gz": 8423
+    },
+    {
+      "path": "src/main.js",
+      "original": 93103,
+      "br": 25077,
+      "gz": 30153
+    },
+    {
+      "path": "src/perf.js",
+      "original": 6000,
+      "br": 2248,
+      "gz": 2718
+    },
+    {
+      "path": "src/platform.js",
+      "original": 6339,
+      "br": 1973,
+      "gz": 2397
+    },
+    {
+      "path": "src/poses.js",
+      "original": 10162,
+      "br": 3829,
+      "gz": 4536
+    },
+    {
+      "path": "src/scenes/CONTRACT.md",
+      "original": 5830,
+      "br": null,
+      "gz": null
+    },
+    {
+      "path": "src/scenes/cosmos.js",
+      "original": 20628,
+      "br": 5925,
+      "gz": 7029
+    },
+    {
+      "path": "src/scenes/station.js",
+      "original": 26212,
+      "br": 7445,
+      "gz": 8821
+    },
+    {
+      "path": "src/scenes/xmas.js",
+      "original": 17293,
+      "br": 5188,
+      "gz": 6116
+    },
+    {
+      "path": "src/theme.js",
+      "original": 11919,
+      "br": 4702,
+      "gz": 5744
+    },
+    {
+      "path": "styles/main.css",
+      "original": 39436,
+      "br": 8080,
+      "gz": 9640
+    },
+    {
+      "path": "vendor/mediapipe/hand_landmarker.task",
+      "original": 7819105,
+      "br": 5368497,
+      "gz": 5796145
+    },
+    {
+      "path": "vendor/mediapipe/vision.d.ts",
+      "original": 116918,
+      "br": null,
+      "gz": null
+    },
+    {
+      "path": "vendor/mediapipe/vision_bundle.js",
+      "original": 136993,
+      "br": 33813,
+      "gz": 39782
+    },
+    {
+      "path": "vendor/mediapipe/wasm/vision_wasm_internal.js",
+      "original": 322044,
+      "br": 64351,
+      "gz": 77830
+    },
+    {
+      "path": "vendor/mediapipe/wasm/vision_wasm_internal.wasm",
+      "original": 11153617,
+      "br": 2273013,
+      "gz": 3295165
+    },
+    {
+      "path": "vendor/mediapipe/wasm/vision_wasm_module_internal.js",
+      "original": 322082,
+      "br": 64330,
+      "gz": 77764
+    },
+    {
+      "path": "vendor/mediapipe/wasm/vision_wasm_module_internal.wasm",
+      "original": 11153641,
+      "br": 2273680,
+      "gz": 3295180
+    },
+    {
+      "path": "vendor/mediapipe/wasm/vision_wasm_nosimd_internal.js",
+      "original": 321847,
+      "br": 64261,
+      "gz": 77765
+    },
+    {
+      "path": "vendor/mediapipe/wasm/vision_wasm_nosimd_internal.wasm",
+      "original": 10481398,
+      "br": 2208102,
+      "gz": 3206373
+    },
+    {
+      "path": "vendor/three/addons/postprocessing/EffectComposer.js",
+      "original": 4651,
+      "br": 1061,
+      "gz": 1188
+    },
+    {
+      "path": "vendor/three/addons/postprocessing/MaskPass.js",
+      "original": 2231,
+      "br": 572,
+      "gz": 668
+    },
+    {
+      "path": "vendor/three/addons/postprocessing/OutputPass.js",
+      "original": 2524,
+      "br": 720,
+      "gz": 833
+    },
+    {
+      "path": "vendor/three/addons/postprocessing/Pass.js",
+      "original": 1706,
+      "br": 607,
+      "gz": 753
+    },
+    {
+      "path": "vendor/three/addons/postprocessing/RenderPass.js",
+      "original": 1941,
+      "br": 543,
+      "gz": 623
+    },
+    {
+      "path": "vendor/three/addons/postprocessing/ShaderPass.js",
+      "original": 1576,
+      "br": 568,
+      "gz": 647
+    },
+    {
+      "path": "vendor/three/addons/postprocessing/UnrealBloomPass.js",
+      "original": 12410,
+      "br": 2513,
+      "gz": 2915
+    },
+    {
+      "path": "vendor/three/addons/shaders/CopyShader.js",
+      "original": 571,
+      "br": 282,
+      "gz": 333
+    },
+    {
+      "path": "vendor/three/addons/shaders/LuminosityHighPassShader.js",
+      "original": 1147,
+      "br": 465,
+      "gz": 513
+    },
+    {
+      "path": "vendor/three/addons/shaders/OutputShader.js",
+      "original": 1490,
+      "br": 514,
+      "gz": 570
+    },
+    {
+      "path": "vendor/three/three.module.js",
+      "original": 1304820,
+      "br": 205370,
+      "gz": 263212
+    }
+  ]
+}

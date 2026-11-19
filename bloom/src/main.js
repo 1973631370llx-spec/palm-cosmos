@@ -1,4 +1,4 @@
-﻿/**
+/**
  * main.js — 舞台、循环、输入源（摄像头 / 指针 / 演示）、HUD、调试。
  *
  * 数据流：camera.js 出 landmark → hands.js 出「手」→ interaction.js 出事件
@@ -31,7 +31,7 @@ import {
   DEMO,
   STATE,
 } from './config.js';
-import { POST, TRAIL, COLOR, VIEW, SEASONS, SEASON_HOLD, ORACLE_LINES, FLOWER_TINT } from './theme.js';
+import { POST, TRAIL, COLOR, VIEW, SEASONS, SEASON_HOLD, ORACLE_LINES, ORACLE_TPL, FLOWER_TINT } from './theme.js';
 import { HeartBurst } from './heart.js';
 import { QualityGovernor, TIERS } from './perf.js';
 import { HandTracker, HAND_CONNECTIONS } from './hands.js';
@@ -40,6 +40,7 @@ import { classifyPose, POSE } from './poses.js';
 import { Flora } from './flower.js';
 import { HandSkeleton } from './handskeleton.js';
 import { Backdrop } from './backdrop.js';
+import { PlatformHost, PLATFORMS, platformMeta } from './platform.js';
 import * as CAM from './camera.js';
 
 /* v4：手势标签（画在掌心旁边的那行小字） */
@@ -48,6 +49,8 @@ const POSE_LABEL = Object.freeze({
   point: 'POINT 指',
   pinch: 'PINCH 捏',
   fist: 'FIST 握拳',
+  ok: 'OK 圆',
+  v: 'V 叶',
   other: 'HAND',
 });
 
@@ -100,6 +103,20 @@ const el = {
   stepList: document.getElementById('step-list'),
   sweepTrack: document.getElementById('sweep-track'),
   sweepLabel: document.getElementById('sweep-label'),
+  /* v4.3 手势回执 */
+  poseHud: document.getElementById('pose-hud'),
+  poseName: document.getElementById('pose-name'),
+  poseDots: [...document.querySelectorAll('#pose-dots i')],
+  /* v5 交互平台 */
+  dock: document.getElementById('dock'),
+  dockBtn: document.getElementById('btn-dock'),
+  dockLabel: document.getElementById('dock-label'),
+  dockList: document.getElementById('dock-list'),
+  dockTray: document.getElementById('dock-tray'),
+  dockStatus: document.getElementById('dock-status'),
+  dockStatusText: document.getElementById('dock-status-text'),
+  dockStatusBar: document.getElementById('dock-status-bar'),
+  btnView: document.getElementById('btn-view'),
   /* v4：季节 / 花语卡 / 比心 */
   veil: document.getElementById('veil'),
   seasonLine: document.getElementById('season-line'),
@@ -165,6 +182,20 @@ const skeleton = el.handCanvas ? new HandSkeleton(el.handCanvas, { maxHands: 2 }
 const flora = new Flora({ scene });
 flora.setPxScale(1);
 
+/* v5：把花的场景整包收进 bloomRoot，切场景时一次 visible 就换干净 */
+const bloomRoot = new THREE.Group();
+bloomRoot.name = 'platform:bloom';
+while (scene.children.length) bloomRoot.add(scene.children[0]);
+scene.add(bloomRoot);
+
+const platformHost = new PlatformHost({
+  THREE,
+  sceneRef: scene,
+  stage: STAGE,
+  quality: 'high',
+  dpr: Math.min(window.devicePixelRatio || 1, 2),
+});
+
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
 const bloomPass = new UnrealBloomPass(
@@ -176,6 +207,17 @@ const bloomPass = new UnrealBloomPass(
 composer.addPass(renderPass);
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
+
+/**
+ * 两张泛光档：花的场景几乎全黑，阈值 0.09 让花瓣也发茸；
+ * 3D 场景有大片中间调（舱壁、雪地、树影），同一个阈值会把整屏糊成一团雾——
+ * 所以切到平台场景时把阈值抬到 0.42、强度压到 0.34，只让真正的亮点发光。
+ */
+function applyBloomProfile(isBloom) {
+  bloomPass.threshold = isBloom ? POST.bloomThreshold : 0.42;
+  bloomPass.strength = isBloom ? (REDUCED ? POST.bloomStrength * 0.7 : POST.bloomStrength) : 0.34;
+  bloomPass.radius = isBloom ? POST.bloomRadius : 0.4;
+}
 
 function fatal(message) {
   el.gate.hidden = false;
@@ -285,6 +327,10 @@ class TipGlow {
 }
 
 const tipGlow = new TipGlow(scene);
+// 指尖拖尾属于「花的场景」：挪进 bloomRoot，换场景时一起消失
+for (const child of [...scene.children]) {
+  if (child !== bloomRoot) bloomRoot.add(child);
+}
 
 /* ── 引擎 / 追踪 ───────────────────────────────────────── */
 const tracker = new HandTracker();
@@ -900,22 +946,23 @@ function applyEvents(events, now) {
    玩法注释：画面里的八步 + 顶部教练条 + 随时可叫的卡片
    ══════════════════════════════════════════════════════════ */
 
-const STEPS = ['near', 'tap', 'sweep', 'duet', 'pinch', 'grab', 'swipe', 'fist', 'oracle', 'season', 'heart'];
+const STEPS = ['near', 'tap', 'sweep', 'duet', 'pinch', 'grab', 'swipe', 'fist', 'oracle', 'season', 'heart', 'motif'];
 
 /** 每个动作做完之后，提示下一个 */
 const COACH = {
   start: ['起步', '把手放进画面，靠近花苞——它会自己慢慢开'],
-  near: ['02 / 11', '张开手停在花上 0.1 秒就抓住了：左右上下移动，360° 转着看它'],
-  tap: ['03 / 11', '手掌从左到右抚过整枝（差不多齐平就行），三朵依次开'],
-  sweep: ['04 / 11', '两只手各压住一端，中间那朵会自己慢慢开'],
-  duet: ['05 / 11', '拇指和食指捏一下（在花上），释放它'],
-  pinch: ['06 / 11', '花开着的时候再捏一下，会浮出今日花语'],
-  grab: ['07 / 11', '手离开花带，张开手掌左右一划——换一种花'],
-  swipe: ['08 / 11', '手不在花上时握拳，整枝合拢'],
-  fist: ['09 / 11', '抓住一朵别动，右上角环满 2 秒——换季'],
-  oracle: ['10 / 11', '两只手同时捏一下，比个心试试'],
-  season: ['11 / 11', '两只手同时捏一下，比个心试试'],
-  heart: ['全部学会', '十一个动作都会了 · 点右下角 ? 随时回看'],
+  near: ['02 / 12', '张开手停在花上 0.1 秒就抓住了：左右上下移动，360° 转着看它'],
+  tap: ['03 / 12', '手掌从左到右抚过整枝（不碰花、横着挥一下也算），三朵依次开'],
+  sweep: ['04 / 12', '两只手各压住一端，中间那朵会自己慢慢开'],
+  duet: ['05 / 12', '拇指和食指捏一下（在花上），释放它'],
+  pinch: ['06 / 12', '花开着的时候再捏一下，会浮出今日花语'],
+  grab: ['07 / 12', '手离开花带，张开手掌左右一划——换一种花'],
+  swipe: ['08 / 12', '手不在花上时握拳，整枝合拢'],
+  fist: ['09 / 12', '抓住一朵别动，右上角环满 2 秒——换季'],
+  oracle: ['10 / 12', '两只手同时捏一下，比个心试试'],
+  season: ['11 / 12', '比个 OK 出圆环、比个耶出一片叶子（上面这几种都会了）'],
+  heart: ['12 / 12', '比个 OK 出圆环、比个耶出一片叶子'],
+  motif: ['全部学会', '十二个动作都会了 · 点右下角 ? 随时回看'],
 };
 
 const tutorial = {
@@ -970,6 +1017,8 @@ const tutorial = {
     // 强制一次样式计算再上 .on，避免「同帧加 class 导致过渡不触发」
     void el.howto.offsetWidth;
     el.howto.classList.add('on');
+    // 说明卡打开时把场景坞收起来：两层都贴在右下角，同时出现会互相压住
+    if (el.dock) el.dock.hidden = true;
     this.hideCoach();
     try {
       localStorage.setItem('bloom.howto.seen', '1');
@@ -981,6 +1030,7 @@ const tutorial = {
   hide() {
     if (!el.howto) return;
     el.howto.classList.remove('on');
+    if (el.dock) el.dock.hidden = false;
     setTimeout(() => {
       if (!el.howto.classList.contains('on')) el.howto.hidden = true;
     }, 320);
@@ -1036,6 +1086,350 @@ function currentHands(now, dt, snap) {
   return [];
 }
 
+/* ══════════════════════════════════════════════════════════
+   v5：交互平台（场景坞 / 视角切换 / 场景自己的按钮）
+   ══════════════════════════════════════════════════════════ */
+
+const plat = {
+  id: 'bloom',
+  view: 'third',
+  busy: false,
+  actionsSig: '',
+  frame: {
+    t: 0,
+    now: 0,
+    hands: [],
+    pointer: { on: false, x: 0, y: 0 },
+    firstPerson: false,
+  },
+  proxies: [], // 复用的手代理对象（每帧只改字段，不 new）
+  still: new Map(), // slot → { x, y, sec }
+  fistHold: 0,
+};
+
+/** 舞台坐标的手 → 场景需要的精简格式（复用对象） */
+function platformHands(hands, dt) {
+  const out = plat.proxies;
+  out.length = 0;
+  for (const h of hands) {
+    const slot = h.slot;
+    let p = out.find((q) => q.slot === slot);
+    if (!p) {
+      p = { slot, tip: { x: 0, y: 0 }, palm: { x: 0, y: 0 }, pinch: { on: false }, pose: null, still: 0 };
+      out.push(p);
+    }
+    p.tip.x = h.tip.x;
+    p.tip.y = h.tip.y;
+    p.palm.x = h.palm ? h.palm.x : h.tip.x;
+    p.palm.y = h.palm ? h.palm.y : h.tip.y;
+    p.pinch.on = !!(h.pose && h.pose.pinch);
+    p.pose = h.pose || null;
+    // 静止时长：给场景做「悬停」判定（抖动 12px 内算没动）
+    const prev = plat.still.get(slot);
+    if (prev) {
+      const d = Math.hypot(h.tip.x - prev.x, h.tip.y - prev.y);
+      prev.x = h.tip.x;
+      prev.y = h.tip.y;
+      prev.sec = d < 14 ? prev.sec + dt : 0;
+      p.still = prev.sec;
+    } else {
+      plat.still.set(slot, { x: h.tip.x, y: h.tip.y, sec: 0 });
+      p.still = 0;
+    }
+  }
+  for (const slot of [...plat.still.keys()]) {
+    if (!hands.some((h) => h.slot === slot)) plat.still.delete(slot);
+  }
+  return out;
+}
+
+/** 双手同时握拳 0.6 秒 = 叫出场景坞（手势里只留这一个「万能键」） */
+function platformFistMenu(hands, dt) {
+  const fists = hands.filter((h) => h.pose && h.pose.pose === 'fist').length;
+  if (fists >= 2) {
+    plat.fistHold += dt;
+    if (plat.fistHold > 0.6) {
+      plat.fistHold = -1.2; // 触发后进入冷却，握拳不放也不会连开
+      el.dockList.hidden = !el.dockList.hidden;
+      toast(el.dockList.hidden ? '场景坞收起' : '换个场景 · 点一张卡', 1800);
+    }
+  } else if (plat.fistHold > 0) {
+    plat.fistHold = Math.max(0, plat.fistHold - dt * 2);
+  } else if (plat.fistHold < 0) {
+    plat.fistHold = Math.min(0, plat.fistHold + dt);
+  }
+}
+
+function syncDockCards() {
+  if (!el.dockList) return;
+  for (const card of el.dockList.querySelectorAll('.dock-card')) {
+    card.classList.toggle('is-on', card.dataset.p === plat.id);
+    card.setAttribute('aria-current', card.dataset.p === plat.id ? 'true' : 'false');
+  }
+  const meta = platformMeta(plat.id);
+  if (el.dockLabel && meta) el.dockLabel.textContent = meta.label;
+}
+
+/** 场景坞里的按钮：视角 + 场景自己的 actions() */
+function syncDockTray() {
+  if (!el.dockTray) return;
+  const acts = plat.id === 'bloom' ? [] : platformHost.actions();
+  const showView = plat.id !== 'bloom' && !!platformHost.host;
+  const sig = `${plat.id}|${showView}|${acts.map((a) => a.label).join(',')}`;
+  if (sig !== plat.actionsSig) {
+    plat.actionsSig = sig;
+    // 先清掉旧的 action 按钮，保留 btnView
+    for (const b of [...el.dockTray.querySelectorAll('.dock-act')]) b.remove();
+    for (const a of acts) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dock-btn dock-act';
+      btn.dataset.a = a.id;
+      btn.textContent = a.label;
+      if (a.hint) btn.title = a.hint;
+      btn.addEventListener('click', () => {
+        platformHost.action(a.id);
+        syncDockTray();
+      });
+      el.dockTray.appendChild(btn);
+    }
+  }
+  if (el.btnView) {
+    el.btnView.hidden = !showView;
+    el.btnView.textContent = plat.view === 'first' ? '第一视角' : '第三视角';
+  }
+  el.dockTray.hidden = !showView && acts.length === 0;
+}
+
+async function setPlatform(id, opts = {}) {
+  if (!platformMeta(id) || plat.busy) return plat.id;
+  if (id === plat.id && !opts.force) return plat.id;
+  plat.busy = true;
+  const real = await platformHost.activate(id, { firstPerson: opts.firstPerson });
+  plat.busy = false;
+  if (real !== id) {
+    toast('这个场景还没装好，先留在原地', 2200);
+    return plat.id;
+  }
+  plat.id = real;
+  plat.view = 'third';
+  bloomRoot.visible = real === 'bloom';
+  state.platform = real;
+  // 花的场景有自己的一套 HUD 提示，换场景时收起来免得打架
+  const isBloom = real === 'bloom';
+  el.stepList.hidden = !isBloom;
+  el.sweepTrack.hidden = !isBloom;
+  el.seasonLine.hidden = !isBloom;
+  el.hint.hidden = !isBloom;
+  renderPass.camera = isBloom ? camera : platformHost.camera() || camera;
+  applyBloomProfile(isBloom);
+  syncDockCards();
+  syncDockTray();
+  const meta = platformMeta(real);
+  if (meta && !opts.silent) toast(`${meta.label} · ${meta.hint}`, 2600);
+  if (skeleton) el.handCanvas.classList.add('is-on');
+  return real;
+}
+
+function platformTick(dt, now, hands, events) {
+  platformFistMenu(hands, dt);
+  const frame = plat.frame;
+  frame.t = now / 1000;
+  frame.now = now;
+  frame.hands = platformHands(hands, dt);
+  frame.pointer.on = state.pointerMode;
+  frame.pointer.x = pointerSource.tip.x;
+  frame.pointer.y = pointerSource.tip.y;
+  frame.firstPerson = plat.view === 'first';
+  if (events && events.length) {
+    for (const ev of events) platformHost.gesture(ev);
+  }
+  platformHost.update(dt, frame);
+
+  const cam = platformHost.camera();
+  renderPass.camera = cam || camera;
+  renderer.toneMappingExposure = 1; // 花的场景会按开花数抬曝光，换场景要归 1
+  composer.render();
+  samplePixels();
+
+  syncDockTray();
+  const hud = platformHost.hud();
+  if (el.dockStatus) {
+    el.dockStatus.hidden = !hud;
+    if (hud) {
+      el.dockStatusText.textContent = hud.status || '';
+      el.dockStatusBar.style.width = `${Math.round((hud.value || 0) * 100)}%`;
+    }
+  }
+}
+
+function platformSwitchAction(id) {
+  const r = platformHost.action(id);
+  syncDockTray();
+  return r;
+}
+
+function bindDock() {
+  if (!el.dockList) return;
+  for (const card of el.dockList.querySelectorAll('.dock-card')) {
+    card.addEventListener('click', () => setPlatform(card.dataset.p));
+  }
+  if (el.dockBtn) {
+    el.dockBtn.addEventListener('click', () => {
+      el.dockList.hidden = !el.dockList.hidden;
+      el.dockBtn.setAttribute('aria-expanded', el.dockList.hidden ? 'false' : 'true');
+    });
+  }
+  if (el.btnView) {
+    el.btnView.addEventListener('click', () => {
+      const v = platformHost.toggleView();
+      if (v) {
+        plat.view = v;
+        syncDockTray();
+        toast(v === 'first' ? '第一视角 · 手就是操作杆' : '第三视角 · 在外面看它', 2000);
+      }
+    });
+  }
+  window.addEventListener('keydown', (e) => {
+    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    const idx = '1234'.indexOf(e.key);
+    if (idx >= 0 && PLATFORMS[idx]) {
+      setPlatform(PLATFORMS[idx].id);
+      return;
+    }
+    if (e.key === 'v' || e.key === 'V') {
+      const v = platformHost.toggleView();
+      if (v) {
+        plat.view = v;
+        syncDockTray();
+      }
+    }
+  });
+}
+
+/** 自检：等下一帧渲染完，把画布读回来算平均亮度 / 亮点占比（CDP 截图算不出来时用它） */
+let pixelReq = null;
+
+/* ══════════════════════════════════════════════════════════
+   v4.3：手势回执 —— 「现在到底识别成什么」
+   ══════════════════════════════════════════════════════════ */
+
+/** 每只手的姿态稳定器：新的原始读数要连续 3 帧一致才认，避免抖动 */
+const poseStable = new Map(); // slot → { raw, n, pose }
+const POSE_HOLD_FRAMES = 3;
+
+function stabilizePose(hand) {
+  const slot = hand.slot || 0;
+  const raw = hand.pose ? hand.pose.pose : null;
+  let st = poseStable.get(slot);
+  if (!st) {
+    st = { raw: null, n: 0, pose: raw };
+    poseStable.set(slot, st);
+  }
+  if (raw === st.raw) {
+    st.n += 1;
+  } else {
+    st.raw = raw;
+    st.n = 1;
+  }
+  // 握拳/捏合这种「瞬时动作」放行得快一点（2 帧），其余 3 帧
+  const need = raw === 'fist' || raw === 'pinch' ? 2 : POSE_HOLD_FRAMES;
+  if (st.n >= need && st.pose !== raw) st.pose = raw;
+  hand.poseStable = st.pose;
+  return st.pose;
+}
+
+/** 把「当前手势 + 哪几根手指立着」写进 HUD（DOM 只在需要时改） */
+const hudPose = { name: '', fingers: '', t: 0 };
+function updatePoseHud(hands, now) {
+  const box = el.poseHud;
+  if (!box) return;
+  const h = hands[0];
+  const live = !!h && !!(state.cameraLive || state.fake || state.demo || state.pointerMode);
+  if (!live) {
+    if (hudPose.name !== '') {
+      hudPose.name = '';
+      box.classList.remove('is-on');
+      el.poseName.textContent = '没有手 · 举起一只手试试';
+      for (const d of el.poseDots) d.classList.remove('is-up');
+    }
+    return;
+  }
+  const pose = h.poseStable || (h.pose && h.pose.pose) || null;
+  const name = POSE_LABEL[pose] || '识别中';
+  const ext = (h.pose && h.pose.ext) || null;
+  const bits = ext ? ext.map((v, i) => (v ? '1' : '0')).join('') : '';
+  if (name === hudPose.name && bits === hudPose.fingers && now - hudPose.t < 240) return;
+  hudPose.name = name;
+  hudPose.fingers = bits;
+  hudPose.t = now;
+  box.classList.add('is-on');
+  el.poseName.textContent = name;
+  for (let i = 0; i < el.poseDots.length; i += 1) {
+    el.poseDots[i].classList.toggle('is-up', !!(ext && ext[i]));
+  }
+}
+function samplePixels() {
+  if (!pixelReq) return;
+  const gl = renderer.getContext();
+  const w = renderer.domElement.width;
+  const h = renderer.domElement.height;
+  const buf = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  let sum = 0;
+  let bright = 0;
+  const n = w * h;
+  for (let i = 0; i < n; i += 1) {
+    const l = buf[i * 4] * 0.3 + buf[i * 4 + 1] * 0.59 + buf[i * 4 + 2] * 0.11;
+    sum += l;
+    if (l > 40) bright += 1;
+  }
+  const done = pixelReq;
+  pixelReq = null;
+  done({ w, h, mean: +(sum / n).toFixed(1), bright: +(bright / n).toFixed(3) });
+}
+
+/** 场景骨架渲染（花的场景和平台场景共用这一份，避免两处走样） */
+function renderSkeleton(hands, now) {
+  if (!skeleton) return;
+  const showSkel =
+    (hands.length > 0 && (state.cameraLive || state.fake || state.demo || state.pointerMode)) || grab.on;
+  if (showSkel && !el.handCanvas.classList.contains('is-on')) el.handCanvas.classList.add('is-on');
+  else if (!showSkel && el.handCanvas.classList.contains('is-on')) el.handCanvas.classList.remove('is-on');
+  try {
+    state.skelHands = hands.length;
+    state.skelLm = hands[0] && hands[0].landmarks ? hands[0].landmarks.length : -1;
+    state.skelT = now;
+    let ring = null;
+    if (grab.on && grab.f >= 0) {
+      const a = FLOWER_ANCHORS[grab.f];
+      const rad = 288 * (a.scale || 1);
+      const sp = stageToScreen(a.x, a.y);
+      const edge = stageToScreen(a.x + rad, a.y);
+      const spin = flora.spinOf(grab.f);
+      ring = { x: sp.x, y: sp.y, r: Math.max(20, Math.abs(edge.x - sp.x) * 1.1), spin };
+    }
+    skeleton.render(hands, {
+      project: (p) => stageToScreen(p.x, p.y),
+      time: now / 1000,
+      opacity: REDUCED ? 0.7 : 1,
+      grabRing: ring,
+      labels: hands.map((h) => POSE_LABEL[h.poseStable || (h.pose && h.pose.pose)] || ''),
+      // v4.3：哪几根手指伸直，骨线就按「伸=暖 / 蜷=冷」上色
+      fingers: hands.map((h) => (h.pose && h.pose.ext) || null),
+    });
+  } catch (e) {
+    if (!state.skelError) {
+      state.skelError = String((e && e.stack) || e);
+      console.error('[skeleton]', state.skelError);
+    }
+  }
+}
+
+/* 场景坞初始化（放在这里而不是文件顶部：plat / syncDockCards 都是 const，先声明后用） */
+bindDock();
+syncDockCards();
+
 function tick(now) {
   rafId = requestAnimationFrame(tick);
   const dt = Math.min(0.05, Math.max(0.0001, (now - lastNow) / 1000));
@@ -1085,7 +1479,9 @@ function tick(now) {
     } catch (_) {
       h.pose = null;
     }
+    stabilizePose(h);
   }
+  updatePoseHud(hands, now);
 
   /* ── v2：靠近就慢慢开 + 第三朵被带着开 ───────────────── */
   updateProximity(hands, now, dt, snap);
@@ -1095,6 +1491,23 @@ function tick(now) {
 
   /* ── v3：捏一下 = 释放 ──────────────────────────────── */
   updatePinch(hands, now);
+
+  /* ── v4.2：OK / 耶 手势出图案 ────────────────────────── */
+  updatePoseMotif(hands, now);
+
+  /* ── v5：切到别的场景时，花的整套逻辑让位 ──────────────── */
+  if (plat.id !== 'bloom') {
+    platformTick(dt, now, hands, snap.events);
+    renderSkeleton(hands, now);
+    state.frameIndex += 1;
+    if (sampleReqs.length) flushSamples();
+    if (FLAG_DEBUG && now - lastDebugAt > 120) {
+      drawDebug(now, hands, snap);
+      lastDebugAt = now;
+    }
+    return;
+  }
+  renderPass.camera = camera;
 
   /* ── v4：四季流转（抓住不放 → 换季） ──────────────────── */
   updateSeason(dt);
@@ -1135,41 +1548,9 @@ function tick(now) {
 
   queueHud(snap);
   composer.render();
+  samplePixels();
 
-  // 手部骨架：认到的 21 点画成细线小点，跟着手走（看不到手时自然空着）
-  if (skeleton) {
-    const showSkel =
-      (hands.length > 0 && (state.cameraLive || state.fake || state.demo || state.pointerMode)) || grab.on;
-    if (showSkel && !el.handCanvas.classList.contains('is-on')) el.handCanvas.classList.add('is-on');
-    else if (!showSkel && el.handCanvas.classList.contains('is-on')) el.handCanvas.classList.remove('is-on');
-    try {
-      state.skelHands = hands.length;
-      state.skelLm = hands[0] && hands[0].landmarks ? hands[0].landmarks.length : -1;
-      state.skelT = now;
-      let ring = null;
-      if (grab.on && grab.f >= 0) {
-        const a = FLOWER_ANCHORS[grab.f];
-        const rad = 288 * (a.scale || 1);
-        const sp = stageToScreen(a.x, a.y);
-        const edge = stageToScreen(a.x + rad, a.y);
-        const spin = flora.spinOf(grab.f);
-        ring = { x: sp.x, y: sp.y, r: Math.max(20, Math.abs(edge.x - sp.x) * 1.1), spin };
-      }
-      skeleton.render(hands, {
-        project: (p) => stageToScreen(p.x, p.y),
-        time: now / 1000,
-        opacity: REDUCED ? 0.7 : 1,
-        grabRing: ring,
-        // v4：把当前手势写到掌心旁边（视觉捕捉的"回执"）
-        labels: hands.map((h) => POSE_LABEL[h.pose && h.pose.pose] || ''),
-      });
-    } catch (e) {
-      if (!state.skelError) {
-        state.skelError = String((e && e.stack) || e);
-        console.error('[skeleton]', state.skelError);
-      }
-    }
-  }
+  renderSkeleton(hands, now);
 
   state.frameIndex += 1;
   if (sampleReqs.length) flushSamples();
@@ -1387,6 +1768,7 @@ const season = {
 
 const heartFx = new HeartBurst(typeof document !== 'undefined' ? el.app : null);
 let heartLastAt = -1e9;
+const motifLastAt = new Map(); // 'ok' / 'v' → 上次出图的时间（限流）
 
 /** 开局把季节设成第 0 季（春），并写进 HUD */
 function initSeason() {
@@ -1446,6 +1828,9 @@ function oracleEntry(flowerIndex) {
   return lines[(dayIndex() + flowerIndex) % lines.length];
 }
 
+/** 花语卡卡面序号：每次开卡 +1，三种版式轮流用 */
+let oracleTplSeq = -1;
+
 function openOracle(flowerIndex) {
   if (!el.oracle) return;
   const entry = oracleEntry(flowerIndex);
@@ -1457,6 +1842,13 @@ function openOracle(flowerIndex) {
   if (el.oracleFlower) el.oracleFlower.textContent = `${entry.flower} · 第 ${flowerIndex + 1} 朵`;
   if (el.oracleDate) el.oracleDate.textContent = `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
   if (el.oracleSeason) el.oracleSeason.textContent = s.en;
+  // v5：三种卡面轮着来（竖排印鉴 / 双栏 / 居中大字），同一句话不会每次都长得一样
+  const card = el.oracle.querySelector('.oracle-card');
+  if (card) {
+    oracleTplSeq = (oracleTplSeq + 1) % ORACLE_TPL;
+    card.dataset.tpl = String(oracleTplSeq);
+    card.dataset.season = s.id || String(season.index);
+  }
   el.oracle.hidden = false;
   el.oracle.setAttribute('aria-hidden', 'false');
   // 强制一次样式计算再上 class，避免「同帧加 class 过渡不触发」也避免闪一帧
@@ -1498,7 +1890,8 @@ function tryHeart(now) {
     x: a.x,
     y: a.y * 0.92,
     color: SEASONS[season.index].key === 'winter' ? '#c9d6ff' : '#ffd2dc',
-    scale: 1.15,
+    scale: 1.2,
+    shape: 'heart',
   });
   // 花心亮点 + 位置反馈
   flora.openFlower(1, { now });
@@ -1507,6 +1900,59 @@ function tryHeart(now) {
   state.heartCount = (state.heartCount || 0) + 1;
   tutorial.mark('heart');
   return true;
+}
+
+/* ── v4.2：OK / 耶 手势出图案（圆环 / 叶子） ───────────────── */
+
+const POSEMOTIF = Object.freeze({
+  ok: { shape: 'ring', color: '#ffe7bd', toast: '圆满 · 一圈都是好的', label: 'OK' },
+  v: { shape: 'leaf', color: '#c9f1c4', toast: '生发 · 长出一片叶子', label: 'V' },
+});
+const POSE_MOTIF = Object.freeze({ hold: 0.3, cooldown: 2600 });
+const poseWatch = new Map(); // slot → { pose, since, fired }
+
+/**
+ * 稳住 0.3 秒就把图案画在掌心上方；同一次「稳住」只放一次，
+ * 手势变了才会重新计数，所以举着 OK 不会连发。
+ */
+function updatePoseMotif(hands, now) {
+  const seen = new Set();
+  for (const h of hands) {
+    if (!h || h.held) continue;
+    const key = h.pose && h.pose.pose;
+    const def = POSEMOTIF[key];
+    seen.add(h.slot);
+    if (!def) {
+      poseWatch.delete(h.slot);
+      continue;
+    }
+    const prev = poseWatch.get(h.slot);
+    if (!prev || prev.pose !== key) {
+      poseWatch.set(h.slot, { pose: key, since: now, fired: false });
+      continue;
+    }
+    if (prev.fired) continue;
+    if (now - prev.since < POSE_MOTIF.hold * 1000) continue;
+    if (now - (motifLastAt.get(key) || -1e9) < POSE_MOTIF.cooldown) {
+      prev.fired = true;
+      continue;
+    }
+    prev.fired = true;
+    motifLastAt.set(key, now);
+    const palm = (h.pose && h.pose.palm) || h.tip;
+    heartFx.play({
+      x: palm.x,
+      y: palm.y - 40,
+      color: def.color,
+      scale: 0.95,
+      shape: def.shape,
+    });
+    toast(def.toast, 2200);
+    state.motifCount = (state.motifCount || 0) + 1;
+    state.lastMotif = def.shape;
+    tutorial.mark('motif');
+  }
+  for (const slot of [...poseWatch.keys()]) if (!seen.has(slot)) poseWatch.delete(slot);
 }
 
 function endGrab(reason) {
@@ -2013,6 +2459,12 @@ function boot() {
     oracleOpen() {
       return !!(el.oracle && !el.oracle.hidden && el.oracle.classList.contains('is-open'));
     },
+    /* 自检用：直接开卡（三种卡面轮换靠它验证） */
+    oracleToggle(f = 0) {
+      toggleOracle(f);
+      const card = el.oracle && el.oracle.querySelector('.oracle-card');
+      return card ? card.dataset.tpl : null;
+    },
     oracleText() {
       if (!el.oracle) return null;
       return {
@@ -2028,9 +2480,63 @@ function boot() {
     heart() {
       return { count: state.heartCount || 0, canvas: !!document.querySelector('.heart-fx') };
     },
+    /** v4.2：OK / 耶 图案的状态与手动触发 */
+    motif() {
+      return {
+        count: state.motifCount || 0,
+        last: state.lastMotif || null,
+        canvas: !!document.querySelector('.heart-fx'),
+      };
+    },
+    fireMotif(shape = 'ring') {
+      const def = Object.values(POSEMOTIF).find((d) => d.shape === shape) || POSEMOTIF.ok;
+      heartFx.play({ x: STAGE.w * 0.5, y: STAGE.h * 0.45, color: def.color, scale: 0.95, shape });
+      state.motifCount = (state.motifCount || 0) + 1;
+      state.lastMotif = shape;
+      return { shape, canvas: !!document.querySelector('.heart-fx') };
+    },
     fireHeart() {
       tryHeart(performance.now());
       return this.heart();
+    },
+    /* ── v5：交互平台 ─────────────────────────────────── */
+    setPlatform(id, opts = {}) {
+      return setPlatform(id, opts);
+    },
+    platformInfo() {
+      return {
+        ...platformHost.info(),
+        id: plat.id,
+        view: plat.view,
+        dockOpen: el.dockList ? !el.dockList.hidden : null,
+        bloomVisible: bloomRoot.visible,
+        actions: platformHost.actions().map((a) => a.id),
+        hud: platformHost.hud(),
+      };
+    },
+    platformAction(id) {
+      return platformSwitchAction(id);
+    },
+    /** 自检用：把根场景交出去，方便在控制台里查场景树 / 亮度 */
+    sceneRoot() {
+      return scene;
+    },
+    /** 下一帧渲染完的整屏亮度（mean 0–255 / bright 0–1），用来量化「是不是太白」 */
+    pixelStats() {
+      return new Promise((resolve) => {
+        pixelReq = resolve;
+        setTimeout(() => {
+          if (pixelReq === resolve) {
+            pixelReq = null;
+            resolve(null);
+          }
+        }, 1500);
+      });
+    },
+    toggleView() {
+      const v = platformHost.toggleView();
+      if (v) plat.view = v;
+      return v;
     },
     pinchDebug() {
       return {

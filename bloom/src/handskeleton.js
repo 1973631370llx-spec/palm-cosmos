@@ -37,6 +37,20 @@ const LINKS = new Int8Array([
   0, 17, // 掌侧
 ]);
 
+/** 每条骨线属于哪根手指（-1 = 掌/腕，不参与伸/曲着色） */
+const LINK_FINGER = new Int8Array([
+  0, 0, 0, 0, // 拇指
+  1, 1, 1, 1, // 食指
+  2, 2, 2, 2, // 中指
+  3, 3, 3, 3, // 无名指
+  4, 4, 4, 4, // 小指
+  -1, // 掌侧
+]);
+
+/** 伸开的手指点亮成暖色、蜷起来压成冷灰：一眼看出「现在举着哪几根」 */
+const FINGER_UP = 'rgb(255, 231, 189)';
+const FINGER_DOWN = 'rgb(96, 112, 134)';
+
 /** 每段骨的权重：越靠指尖越大（亮度 + 那一点点加粗都从它来） */
 const LINK_GAIN = new Float32Array([
   0.86, 0.94, 1.04, 1.14, // 拇指 0-1-2-3-4
@@ -261,6 +275,8 @@ export class HandSkeleton {
     const opacity = Number.isFinite(f.opacity) ? clamp01(f.opacity) : 1;
     const grabRing = f.grabRing || null;
     const labels = Array.isArray(f.labels) ? f.labels : NO_LABELS;
+    // 每只手 5 个「手指是否伸直」的布尔（v4.3 用来给骨线上色）
+    const fingers = Array.isArray(f.fingers) ? f.fingers : NO_LABELS;
 
     // 安全退出：没手 / 没映射 / 整体透明 → 清空
     if (
@@ -345,7 +361,7 @@ export class HandSkeleton {
       slot.smoothPrimed = true;
       if (valid < 2) continue;
 
-      this.drawHand(ctx, hand, slot, hi, time, opacity, gain, labels[hi]);
+      this.drawHand(ctx, hand, slot, hi, time, opacity, gain, labels[hi], fingers[hi]);
       drawn += 1;
     }
 
@@ -396,7 +412,7 @@ export class HandSkeleton {
    * @param {number} opacity 调用方整体不透明度
    * @param {number} gain 亮度预算系数
    */
-  drawHand(ctx, hand, slot, hi, time, opacity, gain, label) {
+  drawHand(ctx, hand, slot, hi, time, opacity, gain, label, fingers) {
     const S = SKELETON_STYLE;
     const fist = Number.isFinite(hand.fist) ? clamp01(hand.fist) : 0;
     const held = hand.held === true;
@@ -499,7 +515,8 @@ export class HandSkeleton {
     }
 
     // ── 骨骼线（主体）──────────────────────────────────────────────
-    ctx.strokeStyle = boneColor;
+    // v4.3：每根手指有自己的颜色——伸直 = 暖蜜色，蜷起 = 冷灰。
+    // 「刚才到底做了什么手势」不再靠猜，看哪几根亮着就明白。
     ctx.fillStyle = boneColor;
     for (let li = 0; li < LINK_COUNT; li += 1) {
       const a = LINKS[li * 2];
@@ -512,7 +529,10 @@ export class HandSkeleton {
       // 越靠指尖越亮 / 略粗（link 权重 → 0–1）
       const t = (LINK_GAIN[li] - 0.66) / (1.18 - 0.66);
       const linkA = S.linkAFloor + S.linkASpan * t;
-      ctx.globalAlpha = clamp01(baseA * S.boneA * linkA);
+      const fing = LINK_FINGER[li];
+      const up = fingers && fing >= 0 ? fingers[fing] : null;
+      ctx.strokeStyle = up === null ? boneColor : up ? FINGER_UP : FINGER_DOWN;
+      ctx.globalAlpha = clamp01(baseA * S.boneA * linkA * (up === false ? 0.62 : 1));
 
       if (held) {
         // 待机虚线感：不画连续线，沿弦打 3 个小点

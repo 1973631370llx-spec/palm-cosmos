@@ -44,6 +44,8 @@ export const POSE = Object.freeze({
   POINT: 'point',
   PINCH: 'pinch',
   FIST: 'fist',
+  OK: 'ok', // v4.2：拇指食指成环、其余三指伸展 → 画面圆环
+  VICTORY: 'v', // v4.2：食指中指伸展（耶 / 叶）→ 画面叶子
   OTHER: 'other',
 });
 
@@ -185,11 +187,22 @@ export function classifyPose(hand) {
   const pinch = pinchRatio < TUNING.PINCH_ON && ext[1];
 
   // ── 姿态 ──────────────────────────────────────────────────
+  // v4.2 新增两种「能出图案」的手势，判定放在 pinch 之前：
+  //   OK  = 拇指尖贴食指尖（pinchRatio 小）且中指/无名/小指都伸展 → 环
+  //   V   = 食指+中指伸展、无名+小指收起 → 耶 / 叶
+  const ringFingers = ext[2] && ext[3] && ext[4];
+  const okRing = pinchRatio < TUNING.PINCH_ON && ringFingers;
+  const victory = ext[1] && ext[2] && !ext[3] && !ext[4];
+
   let pose = POSE.OTHER;
   if (nExt === 0) {
     pose = POSE.FIST;
+  } else if (okRing) {
+    pose = POSE.OK;
   } else if (pinch) {
     pose = POSE.PINCH;
+  } else if (victory) {
+    pose = POSE.VICTORY;
   } else if (nExt >= 4 && pinchRatio >= TUNING.OPEN_PINCH_MIN) {
     pose = POSE.OPEN;
   } else if (ext[1] && !ext[2] && !ext[3] && !ext[4] && pinchRatio >= TUNING.POINT_PINCH_MIN) {

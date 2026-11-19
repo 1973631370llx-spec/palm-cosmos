@@ -92,6 +92,15 @@
 
     <div class="hint" id="hint">轻触一朵</div>
 
+    <!-- v4.3：手势回执 —— 现在识别成什么、哪几根手指立着 -->
+    <div class="pose-hud" id="pose-hud" aria-live="polite">
+      <span class="pose-k">HAND</span>
+      <span class="pose-name" id="pose-name">举起一只手试试</span>
+      <span class="pose-dots" id="pose-dots" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i>
+      </span>
+    </div>
+
     <!-- 横抚进度：手在花带上划过时，三朵依次点亮 -->
     <div class="sweep-track" id="sweep-track" hidden aria-hidden="true">
       <span class="sweep-label" id="sweep-label">横抚 0/2</span>
@@ -103,6 +112,34 @@
       <span class="mini-note">按住 = 握拳</span>
       <button class="mini" id="btn-camera" type="button">开启手势</button>
     </div>
+
+    <!-- ── v5：交互平台（场景切换 + 场景自己的按钮） ─────────── -->
+    <nav class="dock" id="dock" aria-label="交互平台">
+      <button class="dock-open" id="btn-dock" type="button" aria-expanded="false">
+        <span class="dock-k">SCENE</span><span id="dock-label">指尖生花</span>
+      </button>
+      <ul class="dock-list" id="dock-list" hidden>
+        <li><button type="button" class="dock-card is-on" data-p="bloom">
+          <i>01</i><b>指尖生花</b><em>BLOOM</em><span>靠近开花 · 捏合释放</span>
+        </button></li>
+        <li><button type="button" class="dock-card" data-p="cosmos">
+          <i>02</i><b>掌心宇宙</b><em>COSMOS</em><span>张手巡航 · 横挥跃迁</span>
+        </button></li>
+        <li><button type="button" class="dock-card" data-p="xmas">
+          <i>03</i><b>圣诞树</b><em>XMAS</em><span>捏合挂一件 · 挥手撒雪</span>
+        </button></li>
+        <li><button type="button" class="dock-card" data-p="station">
+          <i>04</i><b>空间站</b><em>STATION</em><span>捏合按控制台 · 推杆</span>
+        </button></li>
+      </ul>
+      <div class="dock-tray" id="dock-tray" hidden>
+        <button class="dock-btn" id="btn-view" type="button" hidden>第三视角</button>
+      </div>
+      <div class="dock-status" id="dock-status" hidden>
+        <span id="dock-status-text">—</span>
+        <span class="dock-progress"><i id="dock-status-bar"></i></span>
+      </div>
+    </nav>
   </div>
 
   <!-- ── 开场 / 权限门 ───────────────────────────────────── -->
@@ -151,6 +188,8 @@
       <div class="oracle-mark" aria-hidden="true">
         <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="17.5" /><circle cx="24" cy="24" r="4" /><path d="M24 6.5v5M24 36.5v5M6.5 24h5M36.5 24h5" /></svg>
       </div>
+      <span class="oracle-rule" aria-hidden="true"></span>
+      <span class="oracle-seal" aria-hidden="true">花</span>
       <h2 class="oracle-word" id="oracle-word">先开</h2>
       <p class="oracle-poem" id="oracle-poem">不等天暖，先开一朵给路过的人。</p>
       <div class="oracle-foot">

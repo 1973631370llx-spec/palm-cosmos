@@ -255,23 +255,38 @@ export const SEASON_HOLD = 2.0;
  */
 export const ORACLE_LINES = Object.freeze({
   spring: [
-    { flower: '樱', word: '先开', poem: '不等天暖，先开一朵给路过的人。' },
-    { flower: '樱', word: '轻', poem: '最轻的那片，落在你最想说出口的那句话上。' },
-    { flower: '樱', word: '试探', poem: '花瓣张开一寸，就是在问你敢不敢再近一寸。' },
+    { flower: '樱', word: '苏', poem: '土还凉着，先醒过来的那一个总是最勇敢的。' },
+    { flower: '樱', word: '绽', poem: '不等天暖，先开一朵给路过的人。' },
+    { flower: '樱', word: '遇', poem: '你抬头的那一秒，它刚好开到正好。' },
+    { flower: '樱', word: '初', poem: '第一次总是笨拙的，但第一次也最亮。' },
+    { flower: '樱', word: '柔', poem: '最轻的那片，落在你最想说出口的那句话上。' },
+    { flower: '樱', word: '望', poem: '朝着光的方向长，慢一点也没关系。' },
   ],
   summer: [
-    { flower: '白', word: '亮', poem: '天光最长的时候，别把话留到天黑。' },
+    { flower: '白', word: '炽', poem: '天光最长的时候，别把话留到天黑。' },
     { flower: '白', word: '盛', poem: '开到最满那一下，其实只有几秒。' },
-    { flower: '白', word: '晒', poem: '所有被太阳晒过的东西，都带着暖意。' },
+    { flower: '白', word: '澈', poem: '把心里那点浑水晒干了，就什么都看得清。' },
+    { flower: '白', word: '沁', poem: '凉意不是冷，是一口慢慢咽下去的好。' },
+    { flower: '白', word: '光', poem: '所有被太阳晒过的东西，都带着暖意。' },
+    { flower: '白', word: '长', poem: '白昼够长，你就有借口把喜欢说得再久一点。' },
   ],
   autumn: [
-    { flower: '金', word: '缓', poem: '慢下来才看得见颜色是怎么变的。' },
-    { flower: '金', word: '留', poem: '不是所有落下都叫失去，有的叫收着。' },
-    { flower: '金', word: '香', poem: '把最好闻的那部分，藏在最不起眼的地方。' },
+    { flower: '金', word: '澄', poem: '慢下来才看得见颜色是怎么变的。' },
+    { flower: '金', word: '收', poem: '不是所有落下都叫失去，有的叫收着。' },
+    { flower: '金', word: '醇', poem: '把最好闻的那部分，藏在最不起眼的地方。' },
+    { flower: '金', word: '缓', poem: '风把话说得很慢，所以每一句都听得清。' },
+    { flower: '金', word: '藏', poem: '有些好东西，要等到不太热的时候才肯露面。' },
+    { flower: '金', word: '归', poem: '走得再远，回来的路上都有灯。' },
   ],
   winter: [
-    { flower: '蓝', word: '等', poem: '冷不是终点，是花把力气收进根里。' },
     { flower: '蓝', word: '静', poem: '静下来的枝头，比开花时更耐看。' },
+    { flower: '蓝', word: '蕴', poem: '冷不是终点，是花把力气收进根里。' },
+    { flower: '蓝', word: '韧', poem: '开着的时候不觉得，扛过一场雪才知道它有多硬。' },
     { flower: '蓝', word: '守', poem: '开得慢一点，也还是开了。' },
+    { flower: '蓝', word: '待', poem: '现在什么都没有，正好什么都不用将就。' },
+    { flower: '蓝', word: '暖', poem: '最冷的天里，一点点热都够记很久。' },
   ],
 });
+
+/** 花语卡的卡面模板数（按日期 + 花位轮换，别每次一个样） */
+export const ORACLE_TPL = 3;

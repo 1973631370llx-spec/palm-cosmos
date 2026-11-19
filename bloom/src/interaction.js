@@ -53,6 +53,36 @@ export function detectSweep(samples, cfg = SWEEP, anchors = ANCHORS_M) {
   const need = Math.max(1, Math.min(3, cfg.minCross || 3));
   const hit = [0, 1, 2].filter((i) => pass[i] !== null);
   if (hit.length < need) {
+    // v4.2「看到横着挥就算」：不要求穿过花，只要在画面里横跨够长、而且主要是横向的，
+    // 就当成一次横抚。用户反馈「必须指尖压到花上才触发」太难——这里不碰花也认。
+    const wave = cfg.wave || {};
+    if (wave.on !== false) {
+      const span = Math.abs(dx);
+      // 竖直行程取「沿途最大偏离」，不是首尾之差：中途绕上绕下的 V 形不算横挥
+      let yExc = 0;
+      for (const p of samples) {
+        const d = Math.abs(p.y - first.y);
+        if (d > yExc) yExc = d;
+      }
+      const dur = last.t - first.t;
+      if (
+        span >= (wave.span ?? 0.34) &&
+        span >= (wave.aspect ?? 1.4) * yExc &&
+        dur >= (wave.minDur ?? 0.28) * S &&
+        samples.length >= (wave.minSamples ?? 4)
+      ) {
+        return {
+          dir,
+          order: dir > 0 ? [0, 1, 2] : [2, 1, 0],
+          span,
+          passedAt: pass,
+          hit,
+          progress: hit.length,
+          need,
+          source: 'wave',
+        };
+      }
+    }
     return {
       dir,
       order: null,
@@ -498,6 +528,8 @@ export class InteractionEngine {
       type: 'sweep',
       order: hit.order,
       dir: hit.dir,
+      // 'cross' = 真的抚过多朵；'wave' = v4.2 不碰花的横挥兜底
+      source: hit.source || 'cross',
       stagger: cfg.stagger,
       slot: hitSlot,
       at: t,

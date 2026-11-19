@@ -1,0 +1,260 @@
+<!-- live-url -->
+## 线上地址（2026-11-19 v4）
+
+**主地址 · 国内直连、不用 token**
+
+**https://1973631370llx-spec.github.io/palm-cosmos/bloom/**
+
+- GitHub Pages，仓库 `1973631370llx-spec/palm-cosmos`，站点在 `bloom/` 子目录
+- 更新：`node tools/pack.mjs` → `node tools/pages-push.mjs`（走 GitHub API，不依赖本地代理）
+- 实测 iPhone UA：模型 5.7 MB，点「开启手势」后 6 秒进 `CAMERA LIVE`
+
+**备用地址 · 腾讯云 EdgeOne Makers**
+
+**https://chuntian-rdi2j1op.edgeone.cool**
+
+- 项目 `chuntian`（ID `makers-6dhvz7lzef9t`），加速区域「全球可用区（含中国大陆）」，不需要备案
+- 更新：`node tools/pack.mjs` → `edgeone makers deploy dist-web --name chuntian`
+- ⚠️ 2026-11-19 晚起，**陌生浏览器直接打开这个域名会 401**（`x-eop-msg: eo_time missing`）：
+  项目变成了「需要鉴权访问」。带 `?eo_token=…&eo_time=…` 的部署链接能进，进过一次 cookie 生效后
+  干净域名也能进。要彻底恢复公开访问：EdgeOne 控制台 → 该项目 → 设置 / 访问控制里关掉「鉴权访问」
+  （CLI 没有这个开关，`makers deploy -e production` 也不管这个）。
+- 想换成自己的域名（`bloom.你的域名.com`）：域名管理 → 添加自定义域名；
+  指向大陆节点**必须 ICP 备案**。
+# 指尖生花 / BLOOM AT YOUR FINGERTIPS
+
+一枝横枝，三朵花苞。摄像头认手，指尖即光。
+
+纯静态页面：没有构建、没有后端、没有 CDN。three.js r169 与 MediaPipe Tasks Vision
+（HandLandmarker，`numHands=2`）全部在 `vendor/` 里，断网也能跑。摄像头画面只在本地
+GPU 上采样当背景，**不上传任何东西**（源码里没有任何上传代码）。
+
+---
+
+## 跑起来
+
+```bash
+node server.mjs                      # 默认 http://127.0.0.1:4173
+node server.mjs --port 4199          # 换端口
+node server.mjs --lan                # 监听 0.0.0.0 并打印局域网地址（手机同 Wi-Fi 可直接开）
+node server.mjs --lan --tls          # 走自签名 HTTPS（手机上 Chrome/Edge 会直接拒：NET::CERT_INVALID，别用这条路）
+```
+
+### 三个能用的打开方式（2026-11 实测）
+
+| 场景 | 地址 | 摄像头 |
+| --- | --- | --- |
+| 电脑 | `http://localhost:8080/` | ✅ 能用（localhost 算安全上下文，http 也行） |
+| 手机 / 任意网络 | Cloudflare 快速隧道 `https://xxx.trycloudflare.com/` | ✅ 能用（真证书，没有警告） |
+| 手机 / 同 Wi-Fi | `http://192.168.1.5:8080/` | ❌ 浏览器不给用 → 自动进指针模式并说明原因 |
+
+隧道怎么起（`cloudflared.exe` 在 `E:\DSH\tools\cloudflared\`）：
+
+```bash
+E:\DSH\tools\cloudflared\cloudflared.exe tunnel --url http://127.0.0.1:4211 --no-autoupdate
+```
+
+**别装自签名根证书**：用户明确不要，而且 Chrome/Edge 对自签名叶子证书给的是 NET::ERR_CERT_INVALID，
+连「继续访问」都没有，装不装都进不去。所以手机就走隧道（真证书），电脑走 localhost。
+
+
+浏览器打开后：
+
+- 点「开启手势」→ 授权摄像头 → 手距镜头 40–80cm、手掌完整入镜。
+- 不想开摄像头：点「无摄像头体验」，指针就是指尖（按住 = 握拳）。
+- 想直接看效果：`?demo=1`（自动循环演示）、`?pointer=1`（指针模式）、`?debug=1`（右上角数值 + 手部骨架）。
+- 不会玩：点右下角 `?`（或按 `?` / `h`）弹出「怎么玩」卡片，八个动作用图形+一句话讲完；
+  画面顶部还有一条**教练提示**，你做完一个它就说下一个。
+
+要求：Chrome / Edge（WebGL2）。手机竖屏或桌面窗口都行，画面按 9:16 cover 铺满。
+
+## 八个动作（v3）
+
+| # | 手势 | 触发条件 | 画面 |
+| --- | --- | --- | --- |
+| 01 | 靠近 | 手往花那边移，不用碰到 | 花苞随距离**渐渐**张开（0.85s 开 / 1.6s 收） |
+| 02 | 食指轻触 | 只伸食指，指尖停在花心 97px 内 ≥0.15s | 那朵开；三朵都开 → 保持 4s 后自动一起合拢 |
+| 03 | 横抚整枝 | 2.4s 内单向移动 ≥0.30，**穿过 2 朵**的 x 就算（y 在 ±0.26 带内） | 三朵按手的方向依次绽放（错开 0.14s）；底部三个点实时亮，告诉你 "2/2 差一朵" |
+| 04 | 双手双端 | 左右各一只手（左 ≤1/3、右 ≥2/3，y 0.35–0.75）持续 0.3s | 两端齐开 + 中间那朵被带着慢慢开 |
+| 05 | 捏合释放 | 拇指尖↔食指尖 / 掌长 < 0.22 且食指还伸着，持续 0.1s（滞回 0.40） | 那朵开 + 花粉迸一下。**只做释放这一件事**，不会顺手换花 |
+| 06 | 抓住 · 360° 看 | 张开五指停在花上 0.1s（手要基本静止，0.05 以内） | 镜头推近 1.32×；手左右移→绕竖轴转，上下移→抬头低头，拧手腕→滚转；握拳放下，2.6s 缓回原位 |
+| 07 | 横滑换花 | 手**离开花带**（离最近花 y ≥0.28）时单向横滑 ≥0.22 | MODEL 01/02/03（圆雕 / 旋瓣 / 垂瓣）；在花带里横滑仍然算「横抚」 |
+| 08 | 握拳收拢 | 握拳分 ≥0.55 持续 0.25s，且手心/指尖都不在花上 | 三朵一起收拢；1s 内忽略轻触 |
+
+优先级：**握拳 > 抓住 > 捏合 > 横抚 > 轻触**，同一帧只放行一种。抓着一朵在看的时候，
+摸/横抚/双端一律不抢画面。
+
+### 为什么"以前抚不出来、一捏就跑偏"
+
+- 横抚原来要求**穿全三朵、1.2s 内、y 带宽 0.15**——真人很难同时满足。现在：穿 2 朵就够、
+  时间窗 2.4s、带宽 ±0.26（≈281px），而且**底部三个点会把进度显示出来**（0/2 → 1/2 → 2/2），
+  不用猜。掉一两帧也不再把采样缓存清空（保留 1.2s 宽限）。
+- 捏合原来只按「拇指-食指距离 / 掌长」判，握拳时拇指尖本来就贴着食指 → 一握拳就被判成捏，
+  于是"捏一下变成别的动作"。现在先用 `src/poses.js` 分类姿态（open / point / pinch / fist /
+  other，全部是 2D 比值，尺度/旋转/镜像都无关），**捏合必须同时满足"食指伸直"**，握拳直接排除；
+  姿态分类还顺手让"横滑换花必须张开手掌"成了一条硬规则。
+- 原来的"连捏两次进 3D"整段删掉了（它和捏合释放抢手势，也是"捏着捏着变成半过旋"的来源）。
+  看花改成第 06 条：**张开手抓住**，符合直觉。
+
+## v2 留下的东西
+
+| 新东西 | 做法 | 参数 |
+| --- | --- | --- |
+| 花更大 | `FLORA.baseRadius` 228 → 288（+26%），单朵直径约占画面宽 46%–60% | `theme.js` `FLORA.baseRadius` |
+| 宽屏不再缩成一条 | 视口比 9:16 宽时，纵向取景收到 `VIEW.minH`（0.6），取景中心落在花带上 | `theme.js` `VIEW` |
+| 手部骨架 | 21 点连线 + 关节小点 + 捏合环 + 指尖拖尾，Canvas 2D 叠在花瓣之上；单帧最坏叠加 ≤0.7 | `src/handskeleton.js` `SKELETON_STYLE` |
+| 靠近就慢慢开 | 手到花心的距离 → 接近度，指数逼近（帧率无关） | `config.js` `PROXIMITY` |
+| 宇宙背景 | 程序化星云 + 三层星点 + 银河带 + 暗角/颗粒，零贴图；背景平均亮度 0.012、最亮 0.086 | `src/backdrop.js` |
+
+## 参数在哪
+
+| 想改 | 文件 | 关键项 |
+| --- | --- | --- |
+| 颜色 / 光 / 排版 | `src/theme.js` | `COLOR`、`FLOWER_TINT`、`FLORA`、`BRANCH`、`POST`（bloom）、`VIEW`、`QUALITY.tiers` |
+| 手感 / 阈值 | `src/config.js` | `TOUCH`、`BLOOM`、`SWEEP`、`DUET`、`FIST`、`PROXIMITY`、`PINCH`、`SWIPE`、**`GRAB`**、`SMOOTH`、`CAMERA`、`HANDS` |
+| 姿态判据 | `src/poses.js` | `TUNING`（`EXT_RATIO` 1.05、`THUMB_LATERAL` 0.22、`PINCH_ON` 0.22、`OPEN_PINCH_MIN` 0.28） |
+| 画质档位 | `src/perf.js` + `src/theme.js` | `TIERS`（high / mid / low：dpr 2·1.25·1.0、bloom 分辨率 1.0·0.7·0.5、粒子 9000·6000·4500） |
+| 骨架长相 | `src/handskeleton.js` | `SKELETON_STYLE` |
+| 构图 | `src/config.js` | `FLOWER_LAYOUT`（三朵的舞台坐标与缩放）、`STAGE` |
+
+`theme.js` 里的颜色都按「屏幕上看到的样子」写（sRGB），进 shader 前统一过
+`hexToLinear` / `rgbToLinear`——渲染管线是线性计算 + ACES + sRGB 输出，漏了转换整屏会灰掉。
+
+## 流畅度 / 清晰度怎么保
+
+- **帧率驱动三档**（`src/perf.js` `QualityGovernor`）：1200ms 平均帧时 >20ms（<50fps）持续
+  1.2s → 降一档；<12ms 持续 4s → 升一档；每分钟最多变 4 次。档位只改三样：
+  像素比、bloom 后处理分辨率、粒子数（背景细节最后一档关掉）。
+- 背景是一次**烘进纹理**的（2048×1152 RGBA16F），运行时每帧只做一次贴图采样，
+  不再逐像素跑 fbm。
+- 手部骨架是独立 Canvas 2D 层，和 WebGL 互不阻塞；追踪用 One Euro + 弹簧，跟手不掉帧。
+- 页面隐藏 / 切后台：暂停渲染与识别。`prefers-reduced-motion`：关 bloom、缩短绽放、去掉呼吸。
+- 摄像头不可用 / 被拒绝 / 中途断开：自动切指针模式，效果不减。模型加载 >12s：给「先看无摄像头版」的出口。
+
+## 测试
+
+```bash
+node tools/test-interactions.mjs        # 37 项：状态机 / 阈值 / 互斥 / 坐标
+node tools/test-poses.mjs               # 95 项：姿态分类（4 类 × 尺度 × 抖动 × 镜像 × 旋转）
+node server.mjs --port 4199 &           # 下面这些要一个在跑的服务
+BASE=http://127.0.0.1:4199 node tools/e2e.mjs        # 26 项真浏览器端到端
+BASE=http://127.0.0.1:4199 node tools/v3-check.mjs   # 17 项：姿态 / 横抚 / 捏合 / 抓住转 360°
+BASE=http://127.0.0.1:4199 node tools/ui-check.mjs   # 17 项：怎么玩卡片 + 教练条 + 步骤**
+BASE=http://127.0.0.1:4199 node tools/v2-check.mjs   # 六段数值：靠近慢开 / 第三朵 / 捏 / 换花 / 抓住 / 骨架
+```
+
+- 布局 / 排版自检：`node tools/audit.mjs`（8 种视口逐元素量盒子：出屏、互相压、字号 <11px、文字被裁、热区 <44px）
+  和 `python tools/audit-px.py`（读截图算真实亮度 + 每块文字的 WCAG 对比度）。两个都跑完是 0 问题才能发。
+- 合成手部 landmark 走**真链路**（`tracker.ingest` → 姿态 → 状态机 → WebGL），截图写进 `shots/`。
+- 画面自检（看不见图也能查）：`python tools/analyze.py shots/xxx.png`、`tools/zoom.py`、
+  `tools/flower-profile.py`。
+- `tools/cdp.mjs` 是零依赖 CDP 客户端；`tools/probe.mjs` 一键拍五张对照图。
+
+## 部署成"国内打开很快的固定地址"
+
+> 现成的部署套件在 **`deploy/`**：`upload.mjs`（零依赖上传器，OSS V1 / S3 SigV4 签名经反向验算验证）、
+> `fc-pack.mjs`（阿里云函数计算包，已自检 brotli 生效、`/` 返回 200 + br）、`nginx.conf`、
+> 四条路线（EdgeOne Pages / OSS+CDN / 函数计算 / VPS）的对比与步骤见 `deploy/README.md`。
+> `deploy/selftest.mjs` 不需要云账号就能验上传器：本地假对象存储反向验签 + 回放给真浏览器。
+
+```
+node tools/pack.mjs        # 出 dist/：brotli q11 + gzip 预压缩 + _pack-report.json
+```
+
+首屏 1.48MB → **272KB**（brotli，-82%），其中 `three.module.js` 1.24MB → 201KB；
+MediaPipe 的 wasm+模型 39.9MB → 11.9MB。三条落地路线（阿里云 OSS、腾讯云 COS、
+国内轻量服务器 + nginx）的命令、缓存头、`gzip_static/brotli_static`、wasm MIME 都写在
+[DEPLOY.md](DEPLOY.md)。两条硬事实也在里面写清了：
+
+1. **国内服务器 / 国内 CDN 绑域名必须 ICP 备案**（没备案只能用香港/新加坡节点，RTT 30–80ms）。
+2. **摄像头必须 HTTPS 或 localhost**——`http://` 公网域名下 `getUserMedia` 会被直接拒绝，
+   页面会降级成指针模式。所以"域名 + 免费 DV 证书"不是可选项。
+
+本地先看手机能不能开：`node server.mjs --lan --tls`（自签名证书，手机上点「高级 → 继续访问」）。
+
+## 目录
+
+```
+index.html            结构 + importmap（three 走本地 vendor）+「怎么玩」卡片
+styles/main.css       HUD / 门 / 教练条 / 横抚进度点 / 卡片
+src/main.js           装配：渲染循环、源切换、HUD、手势接线、降级、调试钩子
+src/config.js         行为参数（数值全部集中在这里）
+src/theme.js          审美参数 + sRGB→线性 工具 + 画质三档
+src/poses.js          姿态分类（open/point/pinch/fist/other，纯函数）
+src/perf.js           画质 governor（帧时 → 档位）
+src/camera.js         摄像头、模型加载、逐帧识别
+src/hands.js          landmark → 舞台坐标、One Euro + 弹簧平滑、握拳分数
+src/interaction.js    手势状态机（纯逻辑，可 node 直接 import）
+src/handskeleton.js   骨架 / 捏合环 / 抓花外圈（Canvas 2D）
+src/flower.js         粒子花、枝、光丝、三轴旋转、爆花
+src/backdrop.js       烘纹理的宇宙背景
+server.mjs            零依赖静态服务器（预压缩直发、缓存分区、ETag、--lan、--tls）
+tools/                单测、e2e、v3/ui/v2 自检、CDP 客户端、合成手 fixture、出包
+vendor/               three r169 + MediaPipe wasm/模型（离线用）
+dist/                 pack 产物（可直接上传 OSS/COS/nginx）
+```
+
+## 关于「验收」的实话
+
+自动化能证明的是：手势逻辑、阈值、状态机不错乱、姿态分类在尺度/抖动/镜像/旋转下稳定、
+真浏览器里画面跟着状态变、摄像头 + 本地模型能起来（GPU delegate）、卡片和教练条真的会出现。
+
+自动化**不能**替代的是：真人在真摄像头前的体感——八个动作各自的成功率、端到端延迟、
+镜子方向是否符合直觉、"抓住转 360°"跟不跟手。这些必须人坐在镜头前跑
+（`?debug=1` 右上角有实时 fps / 延迟 / 帧时档位，方便记录）。
+
+所有 PASS 都是**合成 landmark** 的结果，不是真手。
+## 手机打不开时看这里（2026-11-19 补）
+
+第二个地址，托管方式和「掌心宇宙」完全一样（GitHub Pages，同一个仓库）：
+
+**https://1973631370llx-spec.github.io/palm-cosmos/bloom/**
+
+- 实测 iPhone UA 视口：模型 5.7 MB / 627 ms，点「开启手势」后 **6 秒**进 `CAMERA LIVE`
+- 手机**玩不了的头号原因是在微信/QQ/抖音里点开链接**：这些内嵌浏览器不给 `getUserMedia`，
+  必须点右上角「…」→「在浏览器打开」，或直接在 Safari / Chrome 里输地址
+- 第二个按钮「无摄像头体验」是手指模式：手指（鼠标）当指尖，按住 0.35 秒 = 握拳
+## v4：视觉捕捉 + 三个新玩法（2026-11-19）
+
+### 输入：摄像头手势是第一路径
+
+玩法**全部**由摄像头识别的手势驱动（`camera.js → hands.js → poses.js → 事件`），
+没有任何一项需要鼠标/键盘。指针对照模式仍然保留，只作为「没摄像头/被拒权限」的兜底。
+
+画面上现在能**看见识别结果**（`src/handskeleton.js`，v4 加强）：
+
+| 元素 | 说明 |
+| --- | --- |
+| 掌面 | `0-5-9-13-17` 围出的掌形，淡填充 + 掌缘描边 —— 一眼看出"这是只手" |
+| 骨骼线 | 21 段骨，越靠指尖越亮越粗（1.3–1.9 px） |
+| 指尖光晕 | 五个指尖各一团软光，指头位置直接可见 |
+| 捏合连线 | 拇指尖 ↔ 食指尖一根软线，捏的过程可视化 |
+| 捏合环 | 4↔8 之间的环，捏住时收拢变亮，环心一点暖金 |
+| 手势标签 | 掌心旁一行等宽小字：`OPEN 张开 / PINCH 捏 / FIST 握拳 / POINT 指` |
+| 显示平滑 | 这一层再做 0.42 的一阶平滑（只影响画，不影响判定） |
+
+亮度有预算：单只手同一点最坏叠加 ≤0.72，所以手再近也不会糊成白团。
+
+### 三个新玩法（都走同一套手势）
+
+| # | 玩法 | 手势 | 表现 |
+| --- | --- | --- | --- |
+| 09 | 花语卡 | 花开着时**捏合**（花苞时捏合仍然是原来的「释放开花」） | 浮出一张花签：今日花语 + 一句短诗 + 季节 + 日期；再捏 / 轻触 / Esc 收起 |
+| 10 | 四季流转 | **抓住**一朵别动，右上角进度线满 2 秒 | 春樱 → 夏白 → 秋金 → 冬蓝；花色乘数渐变（1.4s）+ 四角色雾 + HUD 文案 |
+| 11 | 比心彩蛋 | **两只手同时捏合**（不用碰到花） | 花心炸出一圈心形光点（2D canvas，1.6s 自清）+ HUD「心意已收到」 |
+
+- 捏合加了「上膛」锁：**捏着不放不会连发**，必须松开再捏才触发下一次（否则花语卡会自己开开关关）。
+- 花语文案按「季节 × 花位 × 日期」取，同一天同一朵永远同一条，录屏重开也一样。
+- 四季只改颜色乘数（`uTint`）与一层 CSS 色雾，**不重建几何**、不掉帧。
+
+### 更新站点
+
+```powershell
+node tools/pack.mjs          # dist/（预压缩）+ dist-web/（原始文件）
+node tools/pages-push.mjs    # 推到 GitHub Pages（走 GitHub API，不需要本地代理）
+edgeone makers deploy dist-web --name chuntian   # 推 EdgeOne（需要干净的域名直连）
+```
+
+`tools/pages-push.mjs` 是为这台机器写的：`~/.gitconfig` 里配了
+`http.https://github.com.proxy = http://127.0.0.1:15556`，那个本地代理一关 `git push` 就直接失败；
+脚本改用 `api.github.com`（通的）走 Data API，按 blob sha 做增量，只有变了的文件才上传。

@@ -1327,3 +1327,384 @@ body {
   .oracle-poem { font-size: 12px; line-height: 1.6; }
   .oracle-mark { display: none; }
 }
+/* ══════════════════════════════════════════════════════════
+   v5 交互平台：右下角场景坞（点着切，不用记手势）
+   ══════════════════════════════════════════════════════════ */
+.dock {
+  position: absolute;
+  right: var(--pad);
+  bottom: calc(var(--pad) + 46px);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.dock-open {
+  order: 4;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgba(8, 7, 12, 0.52);
+  backdrop-filter: blur(10px);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.25s, background 0.25s;
+}
+.dock-open:hover,
+.dock-open:focus-visible {
+  border-color: rgba(255, 241, 230, 0.34);
+  background: rgba(14, 12, 20, 0.7);
+}
+.dock-k {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--ink-fainter);
+}
+#dock-label {
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+}
+
+.dock-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(74vw, 268px);
+  /* 卡片在按钮「上面」一张一张往上排：order 决定视觉顺序，
+     DOM 顺序保持「按钮 → 列表」（读屏先读到当前场景，更顺） */
+  order: 1;
+  max-height: 46vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.dock-list[hidden] { display: none; }
+
+.dock-card {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 1px 8px;
+  width: 100%;
+  padding: 9px 11px;
+  text-align: left;
+  border: 1px solid var(--line-soft);
+  border-radius: 2px;
+  background: rgba(8, 7, 12, 0.42);
+  backdrop-filter: blur(8px);
+  color: var(--ink-dim);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.22s, background 0.22s, color 0.22s, transform 0.22s;
+}
+.dock-card:hover,
+.dock-card:focus-visible {
+  border-color: rgba(255, 241, 230, 0.3);
+  color: var(--ink);
+  transform: translateX(-3px);
+}
+.dock-card.is-on {
+  border-color: rgba(255, 217, 160, 0.52);
+  background: rgba(28, 20, 16, 0.55);
+  color: var(--ink);
+}
+.dock-card i {
+  grid-row: 1 / span 3;
+  align-self: center;
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-fainter);
+}
+.dock-card b {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.dock-card em {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--ink-fainter);
+}
+.dock-card span {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-dim);
+}
+.dock-card.is-on span { color: var(--ink-dim); }
+
+.dock-tray {
+  order: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: min(74vw, 264px);
+}
+.dock-btn {
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgba(8, 7, 12, 0.5);
+  backdrop-filter: blur(8px);
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  min-height: 44px;
+}
+.dock-btn:hover,
+.dock-btn:focus-visible {
+  border-color: rgba(255, 217, 160, 0.5);
+  color: var(--ink);
+}
+.dock-btn.is-on {
+  border-color: rgba(255, 217, 160, 0.55);
+  color: var(--honey);
+  background: rgba(40, 26, 18, 0.5);
+}
+
+.dock-status {
+  order: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+}
+.dock-status[hidden] { display: none; }
+.dock-progress {
+  width: 54px;
+  height: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.dock-progress > i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--honey);
+  box-shadow: 0 0 8px rgba(255, 217, 160, 0.7);
+  transition: width 0.16s linear;
+}
+
+/* 小屏：卡片窄、字更小，别挡住画面中央 */
+@media (max-width: 560px) {
+  .dock { bottom: calc(var(--pad) + 108px); }
+  .dock-list { width: min(80vw, 232px); }
+  .dock-card { padding: 8px 10px; }
+  .dock-card b { font-size: 12.5px; }
+  .dock-card span { font-size: 11px; }
+}
+
+@media (max-height: 470px) {
+  .dock-list { flex-direction: row; width: auto; }
+  .dock-card { width: 132px; }
+  .dock-card span { display: none; }
+}
+
+/* ── v4.3：手势回执（HUD 上一行小字 + 五个指头点）────────────
+   目的：让「现在识别成什么」变成一眼能读的东西，而不是靠猜。
+   位置固定在提示语上方，字号 11px（竖屏手机上看不会糊）。 */
+.pose-hud {
+  position: absolute;
+  left: 26px;
+  bottom: 118px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 13px 7px 11px;
+  border: 1px solid rgba(255, 231, 189, 0.16);
+  border-radius: 999px;
+  background: rgba(8, 11, 14, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0.55;
+  transition: opacity 0.25s ease, border-color 0.25s ease;
+  pointer-events: none;
+  font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.12em;
+  color: rgba(255, 231, 189, 0.78);
+}
+
+.pose-hud.is-on {
+  opacity: 1;
+  border-color: rgba(255, 231, 189, 0.34);
+}
+
+.pose-hud .pose-k {
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  color: rgba(255, 231, 189, 0.5);
+}
+
+.pose-hud .pose-name {
+  color: #ffe7bd;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.pose-hud .pose-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.pose-hud .pose-dots i {
+  width: 4px;
+  height: 11px;
+  border-radius: 2px;
+  background: rgba(255, 231, 189, 0.16);
+  transition: background 0.18s ease, height 0.18s ease;
+}
+
+.pose-hud .pose-dots i.is-up {
+  height: 15px;
+  background: rgba(255, 231, 189, 0.92);
+  box-shadow: 0 0 8px rgba(255, 220, 170, 0.55);
+}
+
+@media (max-width: 560px) {
+  .pose-hud {
+    left: 18px;
+    bottom: 104px;
+    font-size: 11.5px;
+    padding: 7px 12px 7px 10px;
+    gap: 7px;
+  }
+}
+
+@media (max-height: 700px) {
+  .pose-hud {
+    bottom: 92px;
+  }
+}
+
+/* 说明卡（怎么玩）打开时，场景坞整体让位：
+   两者都贴在右下角，同时出现必然互相压字。JS 里 show()/hide() 也会切 hidden，
+   这里再加一条 :has 兜底——不管说明卡是被哪条路径打开的，坞都不会盖住它。 */
+body:has(#howto.on) .dock {
+  display: none;
+}
+
+/* 宽屏（桌面 / 平板横放）：右下的「说明 + 12 步」一直在用，
+   场景坞改到右上角往下展开，两边各占一块，谁也不压谁。
+   手机上（<900px）步骤列表本来就收进 ? 按钮里了，坞留在右下更好按。 */
+@media (min-width: 700px) {
+  .dock {
+    top: calc(var(--pad) + 128px);
+    bottom: auto;
+    align-items: flex-end;
+  }
+  .dock-open { order: 0; }
+  .dock-list {
+    order: 6;
+    max-height: none;
+    width: min(30vw, 268px);
+  }
+  .dock-tray { order: 7; }
+  .dock-status { order: 8; }
+}
+
+/* ── v5：花语卡三版卡面（ORACLE_TPL）────────────────────────
+   同一句话，三种排法：
+     tpl 0 居中大字（默认，最稳）
+     tpl 1 双栏：左边单字 / 右边诗，靠一条竖走线分隔
+     tpl 2 竖排印鉴：单字竖着立在右侧，带一方小印
+   内容元素不变，只重排 —— 组件结构不为「换皮肤」付代价。 */
+.oracle-card .oracle-rule,
+.oracle-card .oracle-seal { display: none; }
+
+/* tpl 1：双栏 */
+.oracle-card[data-tpl='1'] {
+  display: grid;
+  grid-template-columns: auto 1px 1fr;
+  grid-template-areas:
+    'kicker kicker kicker'
+    'word rule poem'
+    'foot foot foot';
+  align-items: center;
+  column-gap: 18px;
+  text-align: left;
+}
+.oracle-card[data-tpl='1'] .oracle-kicker { grid-area: kicker; }
+.oracle-card[data-tpl='1'] .oracle-mark { display: none; }
+.oracle-card[data-tpl='1'] .oracle-word {
+  grid-area: word;
+  font-size: clamp(46px, 13vw, 76px);
+  line-height: 1;
+  margin: 14px 0;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.06em;
+}
+.oracle-card[data-tpl='1'] .oracle-rule {
+  display: block;
+  grid-area: rule;
+  align-self: stretch;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(255, 241, 230, 0.26), transparent);
+}
+.oracle-card[data-tpl='1'] .oracle-poem { grid-area: poem; margin: 0; }
+.oracle-card[data-tpl='1'] .oracle-foot { grid-area: foot; margin-top: 18px; }
+
+/* tpl 2：竖排单字 + 一方印 */
+.oracle-card[data-tpl='2'] {
+  padding-right: 30px;
+}
+.oracle-card[data-tpl='2'] .oracle-mark { margin-left: auto; }
+.oracle-card[data-tpl='2'] .oracle-word {
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  font-size: clamp(40px, 11vw, 62px);
+  margin: 0;
+  opacity: 0.92;
+}
+.oracle-card[data-tpl='2'] .oracle-poem {
+  max-width: 68%;
+  letter-spacing: 0.08em;
+}
+.oracle-card[data-tpl='2'] .oracle-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  left: 24px;
+  bottom: 54px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 143, 163, 0.6);
+  border-radius: 2px;
+  color: rgba(255, 174, 190, 0.92);
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* 小屏：竖排卡片别挤出边界 */
+@media (max-width: 560px) {
+  .oracle-card[data-tpl='2'] { padding-right: 26px; }
+  .oracle-card[data-tpl='2'] .oracle-seal { bottom: 48px; left: 18px; }
+  .oracle-card[data-tpl='1'] .oracle-word { font-size: clamp(38px, 11vw, 58px); }
+}
