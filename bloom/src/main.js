@@ -1166,7 +1166,7 @@ function updateProximity(hands, now, dt, snap) {
   if (prox.heat[0] > 0.4 || prox.heat[1] > 0.4 || prox.heat[2] > 0.4) tutorial.mark('near');
 }
 
-const pinch = { prev: {}, since: new Map(), lastAt: new Map() };
+const pinch = { prev: {}, since: new Map(), lastAt: new Map(), armed: new Map() };
 
 function updatePinch(hands, now) {
   // 握拳时拇指尖也贴着食指 → 不能当成捏合，先把握拳的手剔掉
@@ -1194,9 +1194,13 @@ function updatePinch(hands, now) {
       if (!pinch.since.has(p.slot)) pinch.since.set(p.slot, now);
     } else {
       pinch.since.delete(p.slot);
+      // 松开才重新上膛：捏着不放不会连发（否则花语卡会被自己开开关关）
+      pinch.armed.set(p.slot, true);
     }
+    if (!pinch.armed.has(p.slot)) pinch.armed.set(p.slot, true);
     // 捏住满 dwell 才认一次（松开才能再捏）
-    if (p.on && poseOk && pinch.since.has(p.slot) && now - pinch.since.get(p.slot) >= PINCH.dwell * 1000) {
+    if (p.on && poseOk && pinch.armed.get(p.slot) && pinch.since.has(p.slot) && now - pinch.since.get(p.slot) >= PINCH.dwell * 1000) {
+      pinch.armed.set(p.slot, false);
       pinch.since.delete(p.slot);
       const f = nearestFlower(p.tip, PINCH.radius);
       if (f >= 0 && !grab.on) {
@@ -1219,7 +1223,13 @@ function updatePinch(hands, now) {
     }
     pinch.prev[p.slot] = p.on;
   }
-  for (const slot of Object.keys(pinch.prev)) if (!seen.has(Number(slot))) pinch.prev[slot] = false;
+  for (const slot of Object.keys(pinch.prev)) {
+    if (!seen.has(Number(slot))) {
+      pinch.prev[slot] = false;
+      // 手整个离开画面也算松开：重新上膛，回来再捏还能触发
+      pinch.armed.set(Number(slot), true);
+    }
+  }
 }
 
 function nearestFlower(hand, radiusMetric) {
@@ -1331,6 +1341,7 @@ function initSeason() {
     el.veil.style.opacity = '1';
   }
   if (el.seasonLabel) el.seasonLabel.textContent = s.label;
+  if (el.seasonLine) el.seasonLine.hidden = false;
   if (el.seasonBar) el.seasonBar.style.width = '0%';
   if (el.oracleSeason) el.oracleSeason.textContent = s.en;
 }
