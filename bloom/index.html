@@ -101,6 +101,27 @@
       </span>
     </div>
 
+    <!-- v6：每个场景的「怎么玩」，进场景就摊在屏幕中间偏上，点一下收起
+         前一版只在 README 里写了玩法，人进场景后完全不知道能干什么 -->
+    <section class="plat-guide" id="plat-guide" hidden aria-live="polite">
+      <header>
+        <span class="guide-k" id="guide-k">HOW TO PLAY</span>
+        <b id="guide-title">掌心宇宙</b>
+      </header>
+      <ol id="guide-list"></ol>
+      <button class="guide-x" id="guide-x" type="button">知道啦，开始玩</button>
+    </section>
+
+    <!-- v6：沉浸式推拉圆盘。手指按住在圆盘上往前抹 = 往前走，往后抹 = 后退 -->
+    <div class="dolly" id="dolly" hidden>
+      <div class="dolly-ring" id="dolly-ring">
+        <span class="dolly-arrow up">▲</span>
+        <span class="dolly-arrow down">▼</span>
+        <span class="dolly-dot" id="dolly-dot"></span>
+      </div>
+      <span class="dolly-tip" id="dolly-tip">按住往上抹 前进</span>
+    </div>
+
     <!-- 横抚进度：手在花带上划过时，三朵依次点亮 -->
     <div class="sweep-track" id="sweep-track" hidden aria-hidden="true">
       <span class="sweep-label" id="sweep-label">横抚 0/2</span>

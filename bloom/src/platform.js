@@ -16,27 +16,31 @@ export const PLATFORMS = Object.freeze([
     label: '指尖生花',
     sub: 'BLOOM AT YOUR FINGERTIPS',
     hint: '靠近开花 · 捏合释放 · 横抚整枝',
+    howto: ['靠近花苞自己会开', '捏一下 = 释放花瓣', '横抚整枝 = 三朵一起开', '张手抓住一朵可以转着看'],
     builtin: true,
   },
   {
     id: 'cosmos',
     label: '掌心宇宙',
     sub: 'PALM COSMOS',
-    hint: '张手巡航 · 捏住拖星 · 横挥跃迁',
+    hint: '手划过去星云会亮 · 捏合点亮一颗星 · 横挥跃迁',
+    howto: ['手在画面上划过去，星云跟着亮', '捏合 = 点亮离手最近的那颗星', '横挥 = 跃迁加速', '圆盘往前推 = 靠近星云'],
     file: 'scenes/cosmos.js',
   },
   {
     id: 'xmas',
     label: '圣诞树',
     sub: 'CHRISTMAS TREE',
-    hint: '捏合挂一件 · 挥手撒雪',
+    hint: '手放树上掉礼物 · 挥手摇落一场雪',
+    howto: ['把手放在树上，礼物会掉下来', '礼物落地会堆在树下，数字 +1', '横挥 = 摇树，礼物成片掉', '捏合 = 点树顶的星星开灯串'],
     file: 'scenes/xmas.js',
   },
   {
     id: 'station',
     label: '空间站',
     sub: 'ORBITAL STATION',
-    hint: '捏合按控制台 · 推杆加速',
+    hint: '手是光标 · 捏合按按钮 · 圆盘走近控制台',
+    howto: ['点「视角」进驾驶舱，手就是光标', '手停在按钮上，捏一下 = 按下', '圆盘往前推 = 走近控制台', '按 ARM 接管机械臂，手往哪移它就往哪走'],
     file: 'scenes/station.js',
   },
 ]);
@@ -57,6 +61,8 @@ export class PlatformHost {
     this.quality = quality;
     this.dpr = dpr;
     this.loaded = new Map(); // id → { api, group }
+    /** 场景共用输入：圆盘推拉（-1 退 / +1 进）。main.js 每帧写，场景每帧读 */
+    this.input = { dolly: 0 };
     this.activeId = 'bloom';
     this.host = null; // 当前前台的 { api, group }
     this.errors = [];
@@ -153,6 +159,7 @@ export class PlatformHost {
   update(dt, frame) {
     if (!this.host) return;
     try {
+      frame.input = this.input;
       this.host.api.update && this.host.api.update(dt, frame);
     } catch (err) {
       if (!this.errors.some((e) => e.id === this.activeId && e.message === String(err && err.message))) {
@@ -179,6 +186,12 @@ export class PlatformHost {
       console.warn('[platform] toggleView 出错', err);
       return null;
     }
+  }
+
+  /** 当前场景的「怎么玩」条目（屏幕上给人看的那几条） */
+  howto() {
+    const meta = platformMeta(this.activeId);
+    return (meta && meta.howto) || [];
   }
 
   actions() {

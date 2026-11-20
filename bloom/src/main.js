@@ -111,6 +111,14 @@ const el = {
   dock: document.getElementById('dock'),
   dockBtn: document.getElementById('btn-dock'),
   dockLabel: document.getElementById('dock-label'),
+  platGuide: document.getElementById('plat-guide'),
+  guideTitle: document.getElementById('guide-title'),
+  guideList: document.getElementById('guide-list'),
+  guideX: document.getElementById('guide-x'),
+  dolly: document.getElementById('dolly'),
+  dollyRing: document.getElementById('dolly-ring'),
+  dollyDot: document.getElementById('dolly-dot'),
+  dollyTip: document.getElementById('dolly-tip'),
   dockList: document.getElementById('dock-list'),
   dockTray: document.getElementById('dock-tray'),
   dockStatus: document.getElementById('dock-status'),
@@ -1245,10 +1253,88 @@ async function setPlatform(id, opts = {}) {
   applyBloomProfile(isBloom);
   syncDockCards();
   syncDockTray();
+  syncDolly();
   const meta = platformMeta(real);
   if (meta && !opts.silent) toast(`${meta.label} · ${meta.hint}`, 2600);
+  // v6：进任何场景，先把「怎么玩」摊在屏幕上（8 秒或点一下收起）
+  showGuide(real);
   if (skeleton) el.handCanvas.classList.add('is-on');
   return real;
+}
+
+/* v6：场景玩法卡 —— 「进场景第一眼就知道能干什么」 */
+let guideTimer = 0;
+function showGuide(id, { sticky = false } = {}) {
+  if (!el.platGuide || !el.guideList) return;
+  const items = platformHost.howto();
+  const meta = platformMeta(id);
+  if (!items.length || !meta) {
+    el.platGuide.hidden = true;
+    return;
+  }
+  el.guideTitle.textContent = meta.label;
+  el.guideList.innerHTML = '';
+  for (const line of items) {
+    const li = document.createElement('li');
+    li.textContent = line;
+    el.guideList.appendChild(li);
+  }
+  el.platGuide.hidden = false;
+  el.platGuide.classList.add('is-on');
+  clearTimeout(guideTimer);
+  // 花的场景 12 秒（新人第一屏要读得完），其它场景 8 秒
+  if (!sticky) guideTimer = setTimeout(hideGuide, id === 'bloom' ? 12000 : 8000);
+}
+
+function hideGuide() {
+  clearTimeout(guideTimer);
+  if (!el.platGuide) return;
+  el.platGuide.classList.remove('is-on');
+  el.platGuide.hidden = true;
+}
+
+/* v6：推拉圆盘 —— 手指按住往上抹 = 前进，往下抹 = 后退，松开回中间。
+   桌面用鼠标拖动同一套逻辑；手势另有「手停在圆盘附近」的分支（platformTick 里）。 */
+function bindDolly() {
+  if (!el.dollyRing) return;
+  let active = false;
+  let startY = 0;
+  const setDot = (v) => {
+    if (el.dollyDot) el.dollyDot.style.transform = `translateY(${(-v * 30).toFixed(1)}px)`;
+    platformHost.input.dolly = v;
+    if (el.dollyTip) {
+      el.dollyTip.textContent = v > 0.15 ? '前进中…' : v < -0.15 ? '后退中…' : '按住往上抹 前进';
+    }
+  };
+  const onMove = (e) => {
+    if (!active) return;
+    const dy = (e.clientY - startY) / 60; // 往上 60px = 满速前进
+    setDot(Math.max(-1, Math.min(1, -dy)));
+    e.preventDefault();
+  };
+  const onUp = () => {
+    if (!active) return;
+    active = false;
+    setDot(0);
+  };
+  el.dollyRing.addEventListener('pointerdown', (e) => {
+    active = true;
+    startY = e.clientY;
+    el.dollyRing.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  });
+  el.dollyRing.addEventListener('pointermove', onMove);
+  el.dollyRing.addEventListener('pointerup', onUp);
+  el.dollyRing.addEventListener('pointercancel', onUp);
+  window.addEventListener('pointerup', onUp);
+}
+
+function syncDolly() {
+  if (!el.dolly) return;
+  // 花有自己的玩法，不需要走位；其他场景都给它一个圆盘
+  const need = plat.id !== 'bloom';
+  el.dolly.hidden = !need;
+  if (!need) platformHost.input.dolly = 0;
 }
 
 function platformTick(dt, now, hands, events) {
@@ -1291,12 +1377,9 @@ function platformSwitchAction(id) {
 
 function bindDock() {
   if (!el.dockList) return;
-  // 宽屏（≥700px）直接摊开四张场景卡：用户要的就是「一眼看见、点一下就换」。
-  // 手机上收起来，把整屏让给画面，点「场景」再展开。
-  if (window.innerWidth >= 700 && window.innerHeight >= 600) {
-    el.dockList.hidden = false;
-    if (el.dockBtn) el.dockBtn.setAttribute('aria-expanded', 'true');
-  }
+  // v6：所有尺寸都摊开四张卡 —— 手机上原来要再点一下「场景」才看得到，等于没有入口
+  el.dockList.hidden = false;
+  if (el.dockBtn) el.dockBtn.setAttribute('aria-expanded', 'true');
   for (const card of el.dockList.querySelectorAll('.dock-card')) {
     card.addEventListener('click', () => setPlatform(card.dataset.p));
   }
@@ -1455,6 +1538,8 @@ function renderSkeleton(hands, now) {
 /* 场景坞初始化（放在这里而不是文件顶部：plat / syncDockCards 都是 const，先声明后用） */
 bindDock();
 syncDockCards();
+bindDolly();
+if (el.guideX) el.guideX.addEventListener('click', hideGuide);
 
 function tick(now) {
   rafId = requestAnimationFrame(tick);

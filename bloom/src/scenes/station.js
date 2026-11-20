@@ -98,7 +98,9 @@ export function createScene(ctx) {
 
   /* ── 地球：大球 + 加色大气壳 ─────────────────────────────── */
   const earthGroup = new THREE.Group();
-  // 位置算过：地板在 y=-255，地球原来放 y=-300 会被地板整块挡掉；\n  // 抬到窗口视线上（水平 7°、垂直 1°，竖屏半角约 11°），前窗里才真的有一颗地球。\n  earthGroup.position.set(-330, -40, -2700);
+  // 位置算过：地板在 y=-255，地球原来放 y=-300 会被地板整块挡掉；
+  // 抬到窗口视线上（水平 7°、垂直 1°，竖屏半角约 11°），前窗里才真的有一颗地球。
+  earthGroup.position.set(-330, -40, -2700);
   const earthTex = (() => {
     // 程序生成的「海蓝 + 云带」，够远看一眼就行，别指望像卫星图
     const S = 256;
@@ -129,14 +131,16 @@ export function createScene(ctx) {
   })();
   const earth = new THREE.Mesh(
     new THREE.SphereGeometry(310, low ? 24 : 40, low ? 16 : 28),
-    new THREE.MeshBasicMaterial({ map: earthTex }),
+    // 颜色乘数压到 0.62：贴图提亮过（原来看不见），但纯白会变成一颗过曝的月亮，
+    // 深空场景里地球该是「暗蓝 + 云带」，亮度靠大气边缘那圈蓝光给。
+    new THREE.MeshBasicMaterial({ map: earthTex, color: '#9fb0c4' }),
   );
   const atmo = new THREE.Mesh(
     new THREE.SphereGeometry(330, 32, 20),
     new THREE.MeshBasicMaterial({
       color: '#7fb6ff',
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.14,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     }),
@@ -146,22 +150,53 @@ export function createScene(ctx) {
 
   /* ── 空间站本体（第三人称看得见） ─────────────────────────── */
   const stationBody = new THREE.Group();
+  stationBody.rotation.z = 0.34; // 斜着放：竖屏里对角构图，横向 2000 的站体才不吃成一条细带
   const hull = new THREE.Mesh(
     new THREE.CylinderGeometry(52, 52, 300, 18, 1, true),
-    new THREE.MeshBasicMaterial({ color: '#5d6a7e', side: THREE.DoubleSide }),
+    new THREE.MeshBasicMaterial({ color: '#6d7885', side: THREE.DoubleSide }),
   );
   hull.rotation.z = Math.PI / 2;
   stationBody.add(hull);
   // 环段
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(150, 12, 10, 40),
-    new THREE.MeshBasicMaterial({ color: '#4c5b70' }),
+    new THREE.MeshBasicMaterial({ color: '#5b6573' }),
   );
   ring.rotation.x = Math.PI / 2;
   stationBody.add(ring);
   // 太阳能板（两块 instanced 板阵列）
   const panelGeo = new THREE.BoxGeometry(120, 2, 74);
-  const panelMat = new THREE.MeshBasicMaterial({ color: '#1e3a6b' });
+  // 太阳翼如果只是「一块深蓝板」，远看就是两条黑影 —— 用户原话「只是一个椭圆体加了两个翅膀」。
+  // 这里给板面画上电池片网格（6×8 格 + 细导线），远看才有「一片片」的质感。
+  const panelTex = (() => {
+    const S = 128;
+    const cv = document.createElement('canvas');
+    cv.width = S;
+    cv.height = S;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#22355c';
+    g.fillRect(0, 0, S, S);
+    const cols = 6;
+    const rows = 8;
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        g.fillStyle = (r + c) % 3 === 0 ? '#33538f' : '#2b4779';
+        g.fillRect((c * S) / cols + 1, (r * S) / rows + 1, S / cols - 2, S / rows - 2);
+      }
+    }
+    g.strokeStyle = '#8fb6ee';
+    g.lineWidth = 1;
+    for (let c = 1; c < cols; c += 1) {
+      g.beginPath();
+      g.moveTo((c * S) / cols, 0);
+      g.lineTo((c * S) / cols, S);
+      g.stroke();
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  })();
+  const panelMat = new THREE.MeshBasicMaterial({ color: '#ffffff', map: panelTex });
   const panels = new THREE.InstancedMesh(panelGeo, panelMat, low ? 8 : 14);
   {
     const m = new THREE.Matrix4();
@@ -200,6 +235,178 @@ export function createScene(ctx) {
     windows.instanceMatrix.needsUpdate = true;
   }
   stationBody.add(windows);
+
+  /* ── 外观细节（v6）：上一版是「一个椭圆体 + 两片翅膀」，
+     用户原话「完全看不出是什么」。这里按真实空间站该有的零件补：
+     桁架、对接舱段、散热板、天线、姿控喷嘴、导航灯、编号盘。 ───── */
+  const detail = new THREE.Group();
+  stationBody.add(detail);
+  const metalA = new THREE.MeshBasicMaterial({ color: '#8d9aa8' });
+  const metalB = new THREE.MeshBasicMaterial({ color: '#4b5461' });
+  const glassB = new THREE.MeshBasicMaterial({ color: '#26405e' });
+
+  // 主桁架：一根横向长梁 + 交叉斜撑，两端各挂一组太阳翼
+  const truss = new THREE.Mesh(new THREE.BoxGeometry(low ? 700 : 760, 16, 16), metalA);
+  truss.position.set(0, 0, -46);
+  detail.add(truss);
+  {
+    const braceGeo = new THREE.BoxGeometry(2.4, 74, 2.4);
+    const n = low ? 8 : 14;
+    for (let i = 0; i < n; i += 1) {
+      const x = -340 + (680 * i) / (n - 1);
+      const a = new THREE.Mesh(braceGeo, metalB);
+      a.position.set(x, 0, -46);
+      a.rotation.z = i % 2 ? 0.62 : -0.62;
+      detail.add(a);
+    }
+  }
+
+  // 三个舱段：两节加压舱 + 一节节点舱，用不同的直径区分
+  const modules = [
+    { r: 44, len: 120, x: -80, dz: 0, mat: metalA },
+    { r: 38, len: 150, x: 86, dz: 0, mat: metalA },
+    { r: 30, len: 70, x: 196, dz: 0, mat: metalB },
+  ];
+  for (const m of modules) {
+    const mod = new THREE.Mesh(new THREE.CylinderGeometry(m.r, m.r, m.len, low ? 10 : 16, 1, false), m.mat);
+    mod.rotation.z = Math.PI / 2;
+    mod.position.set(m.x, 0, m.dz);
+    detail.add(mod);
+    // 舱段两端的加强环
+    for (const s of [-1, 1]) {
+      const rib = new THREE.Mesh(new THREE.TorusGeometry(m.r + 3, 3, 6, low ? 12 : 18), metalB);
+      rib.position.set(m.x + (s * m.len) / 2, 0, m.dz);
+      rib.rotation.y = Math.PI / 2;
+      detail.add(rib);
+    }
+  }
+
+  // 散热板：两片挂在桁架下方，带分格线
+  for (const s of [-1, 1]) {
+    const rad = new THREE.Mesh(new THREE.BoxGeometry(200, 4, 96), glassB);
+    rad.position.set(s * 250, -70, 10);
+    detail.add(rad);
+    for (let k = 0; k < 5; k += 1) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(198, 1.2, 1.2), metalA);
+      line.position.set(s * 250, -68, -30 + k * 20);
+      detail.add(line);
+    }
+  }
+
+  // 对接口：一个环 + 四个卡爪，dock 时亮起（下面对接动画用它）
+  const portRing = new THREE.Mesh(
+    new THREE.TorusGeometry(26, 4, 8, low ? 14 : 22),
+    new THREE.MeshBasicMaterial({ color: '#9fb7d6' }),
+  );
+  portRing.position.set(-196, 0, 0);
+  portRing.rotation.y = Math.PI / 2;
+  detail.add(portRing);
+
+  // 天线：一根支杆 + 一口小锅
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 70, 6), metalB);
+  mast.position.set(120, 62, -30);
+  detail.add(mast);
+  const dish = new THREE.Mesh(
+    new THREE.SphereGeometry(20, low ? 10 : 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: '#8d9bb0', side: THREE.DoubleSide }),
+  );
+  dish.position.set(120, 96, -30);
+  dish.rotation.x = -0.9;
+  detail.add(dish);
+
+  // 姿控喷嘴：四个小锥体 + 加色火光（推进时亮）
+  const rcsMat = new THREE.MeshBasicMaterial({
+    color: '#8fd3ff',
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const rcsFires = [];
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      const pod = new THREE.Mesh(new THREE.CylinderGeometry(9, 12, 20, 8), metalB);
+      pod.position.set(sx * 130, sy * 54, 30);
+      detail.add(pod);
+      const fire = new THREE.Mesh(new THREE.ConeGeometry(11, 46, 10, 1, true), rcsMat);
+      fire.position.set(sx * 130, sy * (54 + 42), 30);
+      fire.rotation.x = sy > 0 ? Math.PI : 0;
+      detail.add(fire);
+      rcsFires.push(fire);
+    }
+  }
+
+  // 导航灯：两红一绿一闪一闪（视频里这点闪烁最像「真的在飞」）
+  const navLights = [];
+  for (let i = 0; i < 3; i += 1) {
+    const l = new THREE.Mesh(
+      new THREE.SphereGeometry(5, 8, 6),
+      new THREE.MeshBasicMaterial({ color: i === 0 ? '#ff6b6b' : i === 1 ? '#6bff9c' : '#ffe6c2' }),
+    );
+    const a = (i / 3) * Math.PI * 2;
+    l.position.set(Math.cos(a) * 62, Math.sin(a) * 40, -120);
+    detail.add(l);
+    navLights.push(l);
+  }
+
+  // 站体铭牌（一块暗亮的小平面，写着 ST-04）
+  const plateTex = (() => {
+    const cv = document.createElement('canvas');
+    cv.width = 256;
+    cv.height = 64;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#10161f';
+    g.fillRect(0, 0, 256, 64);
+    g.fillStyle = '#cfe0f5';
+    g.font = 'bold 30px monospace';
+    g.textAlign = 'center';
+    g.fillText('ST-04 春藤', 128, 42);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  })();
+  const plate = new THREE.Mesh(
+    new THREE.PlaneGeometry(96, 24),
+    new THREE.MeshBasicMaterial({ map: plateTex, transparent: true, opacity: 0.9 }),
+  );
+  plate.position.set(-80, 46, 44);
+  detail.add(plate);
+
+  /* 外部机械臂（v6）：真实空间站是「舱外机械臂 + 舱内遥控」。
+     这一根在第三人称也看得见，跟控制台那根小臂共用同一组关节角，
+     所以「在控制台按 ARM 接管、手往哪移它就往哪走」是真的能看到的。 */
+  const extArm = new THREE.Group();
+  extArm.position.set(120, -60, 30);
+  stationBody.add(extArm);
+  const extSegs = [];
+  {
+    const segGeo = new THREE.CylinderGeometry(7, 7, 150, 8);
+    segGeo.translate(0, 75, 0);
+    let parent = extArm;
+    for (let i = 0; i < 3; i += 1) {
+      const seg = new THREE.Group();
+      const mesh = new THREE.Mesh(segGeo, i === 1 ? metalB : metalA);
+      seg.add(mesh);
+      // 关节球，让折角看得清
+      const joint = new THREE.Mesh(new THREE.SphereGeometry(11, 10, 8), metalB);
+      seg.add(joint);
+      parent.add(seg);
+      extSegs.push(seg);
+      parent = seg;
+      parent.position.y = i === 0 ? 0 : 150;
+    }
+    const claw = new THREE.Group();
+    claw.position.y = 152;
+    for (const s of [-1, 1]) {
+      const jaw = new THREE.Mesh(new THREE.BoxGeometry(6, 34, 6), metalA);
+      jaw.position.x = s * 10;
+      claw.add(jaw);
+      if (s < 0) extSegs.jawA = jaw;
+      else extSegs.jawB = jaw;
+    }
+    parent.add(claw);
+    extSegs.claw = claw;
+  }
   group.add(stationBody);
 
   /* ── 驾驶舱（第一人称）：窗框 + 仪表 + 控制台 ─────────────── */
@@ -460,7 +667,7 @@ export function createScene(ctx) {
     t: 0,
     rx: 0,
     ry: 0.12,
-    dist: 1500,
+    dist: 1080,
     handPan: { x: 0, y: 0 },
     lightsOn: true,
     thrust: 0.25,
@@ -470,6 +677,11 @@ export function createScene(ctx) {
     armX: 0,
     armY: 0,
     grip: 0,
+    armMode: false,   // 是否已被控制台「接管」：接管后手往哪移机械臂就往哪走
+    lookX: 0,         // 驾驶舱内左顾右盼（±0.95rad ≈ ±54°）
+    lookY: 0,
+    dolly: 0,         // 圆盘推拉：+1 往前走，-1 后退
+    deep: 0,          // 累计走位（0 = 舱尾，1 = 贴着控制台）
     pressed: '',
     hover: -1,
     status: '空间站 · 静默巡航',
@@ -520,8 +732,10 @@ export function createScene(ctx) {
         state.status = '对接口 · 光带张开';
         break;
       case 'arm':
-        state.grip = state.grip > 0.5 ? 0 : 1;
-        state.status = state.grip > 0.5 ? '机械臂 · 夹爪闭合' : '机械臂 · 夹爪张开';
+        // v6：这个按钮是「接管/交还」，不是夹爪。接管后手就是机械臂的末端，
+        // 往哪移它往哪走 —— 上一版按下去只翻个夹爪，等于什么也没发生。
+        state.armMode = !state.armMode;
+        state.status = state.armMode ? '机械臂 · 已接管（手就是末端）' : '机械臂 · 已交还';
         break;
       case 'nav':
         state.rx += 0.6;
@@ -560,7 +774,7 @@ export function createScene(ctx) {
         { id: 'lights', label: '舱内灯' },
         { id: 'scan', label: '扫描' },
         { id: 'dock', label: '对接口' },
-        { id: 'arm', label: '机械臂' },
+        { id: 'arm', label: state.armMode ? '机械臂 接管中' : '机械臂' },
         { id: 'thrust', label: '推进' },
       ];
     },
@@ -590,10 +804,17 @@ export function createScene(ctx) {
       return {
         firstPerson: state.firstPerson,
         hover: state.hover,
+        pinch: !!state.wasPinch,
+        hand: !!state.hasHand,
+        pose: state.poseName || '',
         pressed: state.pressed,
         thrust: +state.thrust.toFixed(2),
         lightsOn: state.lightsOn,
         grip: state.grip,
+        armMode: state.armMode,
+        armX: +state.armX.toFixed(2),
+        deep: +state.deep.toFixed(2),
+        lookX: +state.lookX.toFixed(2),
         status: state.status,
       };
     },
@@ -639,6 +860,9 @@ export function createScene(ctx) {
       }
       // 舱内亮度：用两个「真的暗」的色值插值（早先 setScalar(0.1) 是线性值 = 中灰，
       // 整块舱壁会被照成一堵白墙，实测整屏平均亮度 188/255，必须用 sRGB 暗色）
+      // 按下按钮时面板整体亮一下（0.35 秒衰减），「按到了」必须看得见
+      const flash = buttons.reduce((m, b) => Math.max(m, b.press), 0);
+      panel.material.color.copy(PANEL_OFF).lerp(PANEL_ON, state.lightsOn ? 1 : 0).addScalar(flash * 0.05);
       const dimK = state.lightsOn ? 1 : 0;
       wallMat.color.copy(WALL_OFF).lerp(WALL_ON, dimK);
       panel.material.color.copy(PANEL_OFF).lerp(PANEL_ON, dimK);
@@ -656,6 +880,7 @@ export function createScene(ctx) {
       stationBody.visible = !state.firstPerson;
       cockpit.visible = state.firstPerson;
       stationBody.rotation.y += d * 0.06;
+      // 尺寸：模型半径约 700，第三人称距离 1780 才留出太空边距，不然满屏都是金属
 
       if (state.firstPerson) {
         /* ── 第一人称 ─────────────────────────────────────── */
@@ -690,6 +915,7 @@ export function createScene(ctx) {
             cursorMats[i].color.set(hoverIdx >= 0 ? '#fff2cf' : '#ffe6c2');
           }
           state.hover = hoverIdx;
+          state.hoverT = t; // 记时间：手短暂丢失时用宽限保持悬停
 
           // 抓住推杆区（右侧）→ 手的上下动推杆
           const nearLever = Math.hypot(cursor.position.x - 252, cursor.position.y + 30) < 58;
@@ -705,28 +931,79 @@ export function createScene(ctx) {
             state.armY += (Math.max(-1, Math.min(1, cursor.position.y / 90)) - state.armY) * Math.min(1, d * 5);
           }
         } else {
-          cursor.visible = false;
-          state.hover = -1;
+          // 手一帧没被识别（遮挡 / 低帧率掉帧）就把光标收掉，实测会「闪」：
+          // 光标没了 hover 变 -1，用户正好这时捏合就按不到按钮。
+          // 所以给它 0.35 秒宽限：短时间内保持上一次的悬停目标，捏合仍然有效。
+          const keep = t - (state.hoverT || -9) < 0.35;
+          if (!keep) {
+            cursor.visible = false;
+            state.hover = -1;
+          }
         }
 
-        /* 机械臂：三段用正弦分配角度，末端跟手 */
+        /* 机械臂：三段用正弦分配角度，末端跟手。
+           v6：只在「已接管」状态下由手驱动，并且舱外那根大臂同步同样的关节角 ——
+           「在控制台遥控机械臂」这件事必须在画面上看得见。 */
+        if (state.armMode && h0) {
+          const nx = h0.tip.x / stage.w - 0.5;
+          const ny = h0.tip.y / stage.h - 0.5;
+          state.armX += (Math.max(-1, Math.min(1, nx * 2)) - state.armX) * Math.min(1, d * 6);
+          state.armY += (Math.max(-1, Math.min(1, ny * 2)) - state.armY) * Math.min(1, d * 6);
+          state.status = `机械臂 · X ${Math.round(state.armX * 90)}° / Y ${Math.round(state.armY * 60)}°`;
+          if (h0.pinch && h0.pinch.on) state.grip = Math.min(1, state.grip + d * 3);
+          else state.grip = Math.max(0, state.grip - d * 3);
+        }
         armSegs[0].rotation.z = state.armX * 0.7;
         armSegs[0].rotation.x = -0.4 + state.armY * 0.5;
-        armSegs[1].rotation.z = Math.sin(t * 0.8) * 0.25 + state.armX * 0.5;
+        armSegs[1].rotation.z = Math.sin(t * 0.8) * 0.12 + state.armX * 0.5;
         armSegs[2].rotation.z = 0.5 + state.armY * 0.4;
         const jawOpen = 1 - state.grip;
         armSegs.jaws[0].position.x = -7 - jawOpen * 6;
         armSegs.jaws[1].position.x = 7 + jawOpen * 6;
 
-        /* 相机：舱内朝前看，推进时轻微抖 */
+        /* 相机：舱内朝前看，推进时轻微抖。
+           v6 两个新东西：
+             · 圆盘推拉 → 沿着舱内纵深走（0 = 舱尾，1 = 贴到控制台），真的「走到」台前；
+             · 手左右上下 → 转头看，能 360° 把整个舱看一圈（±54° 左右 / ±20° 上下）。 */
+        const dol = frame.input ? frame.input.dolly : 0;
+        state.deep = Math.max(0, Math.min(1, state.deep + dol * d * 0.55));
+        if (h0) {
+          const nx = h0.tip.x / stage.w - 0.5;
+          const ny = h0.tip.y / stage.h - 0.5;
+          // 手在画面右 → 往右看；不捏合时才「看」，捏合是操作，别打架
+          // 光标一旦停在按钮上就别再转头：否则手一靠近按钮，镜头继续转，光标跟着飘，
+          // 永远瞄不准（实测 pinch 按不下去就是这个原因）
+          const want = state.armMode || (h0.pinch && h0.pinch.on) || state.hover >= 0 ? 0 : 1;
+          state.lookX += (nx * 1.9 * want - state.lookX) * Math.min(1, d * 2.4);
+          state.lookY += (ny * 0.7 * want - state.lookY) * Math.min(1, d * 2.4);
+        } else {
+          state.lookX *= 1 - d * 1.6;
+          state.lookY *= 1 - d * 1.6;
+        }
+        const camZ = 60 - state.deep * 300; // 60 → -240（面板在 -460，越近按钮越大）
         cam.position.x += (Math.sin(t * 0.4) * 6 - cam.position.x) * Math.min(1, d * 2);
         cam.position.y += (Math.sin(t * 0.31) * 4 - cam.position.y) * Math.min(1, d * 2);
-        cam.position.z += (60 - cam.position.z) * Math.min(1, d * 2);
+        cam.position.z += (camZ - cam.position.z) * Math.min(1, d * 2.2);
         cam.position.x += Math.sin(t * 47) * shake * 0.5;
         cam.position.y += Math.cos(t * 39) * shake * 0.5;
-        cam.lookAt(0, -8, -600);
+        // 转头：把注视点按角度挪开，够远才不会因为近处物体而抖
+        cam.lookAt(
+          Math.sin(state.lookX) * 900,
+          -8 + Math.sin(state.lookY) * 520,
+          -600 - Math.cos(state.lookX) * 60,
+        );
       } else {
         /* ── 第三人称：手左右拖 → 视角绕站体 ─────────────────── */
+        // 接管状态下，手同样驱动舱外那根大臂：在外面也能看着它动
+        if (state.armMode && h0) {
+          const ax = h0.tip.x / stage.w - 0.5;
+          const ay = h0.tip.y / stage.h - 0.5;
+          state.armX += (Math.max(-1, Math.min(1, ax * 2)) - state.armX) * Math.min(1, d * 4);
+          state.armY += (Math.max(-1, Math.min(1, ay * 2)) - state.armY) * Math.min(1, d * 4);
+          state.status = `机械臂 · X ${Math.round(state.armX * 90)}° / Y ${Math.round(state.armY * 60)}°`;
+          if (h0.pinch && h0.pinch.on) state.grip = Math.min(1, state.grip + d * 3);
+          else state.grip = Math.max(0, state.grip - d * 3);
+        }
         if (h0) {
           const nx = h0.tip.x / stage.w - 0.5;
           const ny = h0.tip.y / stage.h - 0.5;
@@ -738,6 +1015,9 @@ export function createScene(ctx) {
         }
         state.rx += d * 0.12 + state.handPan.x * d * 2.4;
         state.ry = 0.12 + state.handPan.y * 0.5;
+        // 圆盘在第三人称=拉近/推远（想看细节就往里推）
+        const dol = frame.input ? frame.input.dolly : 0;
+        state.dist = Math.max(560, Math.min(1500, state.dist - dol * d * 900));
         const dist = state.dist - state.thrust * 420;
         const cx = Math.sin(state.rx) * dist * Math.cos(state.ry);
         const cz = Math.cos(state.rx) * dist * Math.cos(state.ry);
@@ -753,9 +1033,31 @@ export function createScene(ctx) {
 
       cam.updateMatrixWorld();
 
+      /* 舱外大臂：跟控制台那根小臂同一组关节角（视觉上「遥控」是真的） */
+      extSegs[0].rotation.z = state.armX * 0.9;
+      extSegs[0].rotation.x = Math.PI / 2 - 0.5 + state.armY * 0.7;
+      extSegs[1].rotation.z = -0.9 + state.armX * 0.6;
+      extSegs[2].rotation.z = 0.7 + state.armY * 0.5;
+      extSegs.jawA.position.x = -10 - (1 - state.grip) * 8;
+      extSegs.jawB.position.x = 10 + (1 - state.grip) * 8;
+
+      /* 姿控喷口的火光 + 导航灯闪（画面「活着」的细节） */
+      const fireK = Math.max(0, state.thrust - 0.3) * 1.4 + state.shake;
+      rcsMat.opacity = Math.min(0.75, fireK * 0.6);
+      for (const f of rcsFires) f.scale.y = 0.6 + fireK * 0.8;
+      for (let i = 0; i < navLights.length; i += 1) {
+        const ph = Math.sin(t * 2.6 + i * 2.1) > 0.72;
+        navLights[i].scale.setScalar(ph ? 1.5 : 0.7);
+      }
+      // 对接口在 dock 期间发光（按「接」按钮看得见变化）
+      portRing.material.color.setStyle(state.dock > 0.05 ? '#d9ecff' : '#9fb7d6');
+      portRing.scale.setScalar(1 + state.dock * 0.22);
+
       /* 捏合按按钮：引擎不发 pinch 事件（那是花的逻辑），所以自己判边沿 ——
          「上一帧没捏、这一帧捏了」且光标停在某个按钮上 = 按下。 */
       const pinchNow = !!(h0 && h0.pinch && h0.pinch.on);
+      state.hasHand = !!h0;
+      state.poseName = h0 && h0.pose ? h0.pose.pose : '';
       if (state.firstPerson && pinchNow && !state.wasPinch && state.hover >= 0) {
         pressButton(buttons[state.hover]);
       }

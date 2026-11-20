@@ -1725,3 +1725,197 @@ body:has(#howto.on) .dock {
   }
   .dock-card { min-width: 118px; }
 }
+
+/* ══ v6：场景玩法卡 + 沉浸推拉圆盘 ══════════════════════════
+   说法从「你猜」改成「写着」：进任何一个新场景，先把 3–4 条玩法摊出来，
+   点一下（或 8 秒后自己收）就消失，不挡画面。 */
+.plat-guide {
+  position: absolute;
+  left: 50%;
+  top: 14%;
+  transform: translateX(-50%);
+  width: min(86vw, 420px);
+  padding: 14px 16px 12px;
+  background: linear-gradient(180deg, rgba(18, 14, 22, 0.9), rgba(8, 7, 12, 0.94));
+  border: 1px solid rgba(255, 241, 230, 0.16);
+  border-radius: 3px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.6);
+  z-index: 24;
+  pointer-events: auto;
+}
+.plat-guide header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.plat-guide .guide-k {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+}
+.plat-guide b {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+.plat-guide ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.plat-guide li {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 241, 230, 0.82);
+  padding-left: 18px;
+  position: relative;
+}
+.plat-guide li::before {
+  content: counter(guide);
+  counter-increment: guide;
+  position: absolute;
+  left: 0;
+  top: 1px;
+  font-size: 11px;
+  color: rgba(255, 143, 163, 0.9);
+}
+.plat-guide ol { counter-reset: guide; }
+.plat-guide .guide-x {
+  margin-top: 10px;
+  min-height: 44px;
+  padding: 0 14px;
+  width: 100%;
+  background: rgba(255, 241, 230, 0.06);
+  border: 1px solid rgba(255, 241, 230, 0.2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+.plat-guide .guide-x:active { background: rgba(255, 241, 230, 0.14); }
+
+/* 推拉圆盘：竖屏手机放右下，拇指够得着；桌面放右下角同位置 */
+.dolly {
+  position: absolute;
+  right: calc(var(--pad) + 4px);
+  bottom: calc(var(--pad) + 168px);
+  width: 104px;
+  height: 148px;
+  z-index: 23;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  touch-action: none;
+}
+.dolly-ring {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 241, 230, 0.22);
+  background: radial-gradient(circle at 50% 40%, rgba(255, 241, 230, 0.08), rgba(8, 8, 12, 0.5) 70%);
+  touch-action: none;
+  cursor: grab;
+}
+.dolly-ring:active { cursor: grabbing; }
+.dolly-arrow {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: rgba(255, 241, 230, 0.5);
+}
+.dolly-arrow.up { top: 6px; }
+.dolly-arrow.down { bottom: 6px; }
+.dolly-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: rgba(255, 231, 189, 0.9);
+  box-shadow: 0 0 18px rgba(255, 214, 160, 0.55);
+  transition: transform 80ms linear;
+}
+.dolly-tip {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+/* 手机上圆盘别压住提示语 */
+@media (max-height: 700px) {
+  .dolly { bottom: calc(var(--pad) + 132px); }
+}
+
+/* ══ v6：手机上的场景切换条 ═══════════════════════════════
+   用户实测：「手机点进去没有切换场景的地方」——原来手机上场景坞是收起的，
+   等于没有入口。现在手机上把它变成**底部一行四张卡**，永远摊开，
+   拇指一伸就点得到；桌面/平板仍是右上角竖排列表（那边横向空间不够）。 */
+@media (max-width: 699px) {
+  .dock {
+    left: var(--pad);
+    right: var(--pad);
+    bottom: calc(var(--pad) + 92px);
+    top: auto;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .dock-open { display: none; } /* 手机上不需要「展开」按钮：直接摊开 */
+  .dock-list {
+    order: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .dock-card {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 46px;
+    padding: 6px 6px 5px;
+    gap: 0;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-radius: 2px;
+  }
+  .dock-card i { font-size: 11px; line-height: 1; opacity: 0.62; }
+  .dock-card b { font-size: 12px; line-height: 1.2; letter-spacing: 0.02em; }
+  .dock-card em,
+  .dock-card span { display: none; } /* 手机上只留「01 指尖生花」两行，别塞英文 */
+  .dock-tray {
+    order: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
+  }
+  .dock-tray .dock-btn { flex: 0 1 auto; }
+  .dock-status { order: 2; }
+  .dock-status { width: 100%; }
+}
+
+/* 手机：手势回执要抬到「场景切换条」上面去，否则两层叠在一起 */
+@media (max-width: 699px) {
+  .pose-hud { bottom: calc(var(--pad) + 158px); }
+  .hint { bottom: calc(var(--pad) + 64px); }
+}

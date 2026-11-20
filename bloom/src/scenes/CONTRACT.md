@@ -14,6 +14,7 @@ export const META = Object.freeze({
   label: '圣诞树',        // 场景卡片上的大字（≤5 个汉字）
   sub: 'CHRISTMAS TREE', // 卡片上的小字（大写英文 / 短句，≤18 字符）
   hint: '捏合挂一件 · 挥手撒雪', // 一行玩法提示（≤22 个汉字）
+  howto: ['把手放在树上，礼物会掉下来', '…'], // v6 必填：3–4 条「怎么玩」，进场景就摊在屏幕上
 });
 
 export function createScene(ctx) { /* ... */ return api; }
@@ -69,6 +70,7 @@ frame = {
   ],
   pointer: { on: boolean, x, y }, // 无摄像头模式的鼠标位置（舞台坐标）
   firstPerson: boolean,
+  input: { dolly: number },  // v6：屏幕右下推拉圆盘，-1 = 后退，+1 = 前进，0 = 松手
 };
 ```
 
