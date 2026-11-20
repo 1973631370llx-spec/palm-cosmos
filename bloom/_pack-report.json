@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T05:04:01.910Z",
+  "generatedAt": "2026-11-20T05:23:41.555Z",
   "node": "v24.21.0",
   "out": "dist-web",
   "policy": {
@@ -37,12 +37,12 @@
   },
   "totals": {
     "files": 41,
-    "originalBytes": 43689209,
-    "brBytes": 12850536,
-    "gzBytes": 16452696,
+    "originalBytes": 43689388,
+    "brBytes": 12850595,
+    "gzBytes": 16452774,
     "brFilesKept": 38,
     "gzFilesKept": 38,
-    "savedByBr": 30838673,
+    "savedByBr": 30838793,
     "savedPctByBr": 70.6
   },
   "groups": {
@@ -71,22 +71,22 @@
     "rest": {
       "name": "rest",
       "files": 7,
-      "original": 212017,
-      "br": 76717,
-      "gz": 85994,
+      "original": 212196,
+      "br": 76776,
+      "gz": 86072,
       "brFiles": 5,
-      "saved": 135300,
-      "savedPct": 63.8156374253008
+      "saved": 135420,
+      "savedPct": 63.81835661369677
     },
     "all": {
       "name": "all",
       "files": 41,
-      "original": 43689209,
-      "br": 12850536,
-      "gz": 16452696,
+      "original": 43689388,
+      "br": 12850595,
+      "gz": 16452774,
       "brFiles": 38,
-      "saved": 30838673,
-      "savedPct": 70.58647594191966
+      "saved": 30838793,
+      "savedPct": 70.58646140797394
     }
   },
   "files": [
@@ -194,9 +194,9 @@
     },
     {
       "path": "src/scenes/station.js",
-      "original": 42655,
-      "br": 11954,
-      "gz": 14098
+      "original": 42834,
+      "br": 12013,
+      "gz": 14176
     },
     {
       "path": "src/scenes/xmas.js",

@@ -868,6 +868,9 @@ export function createScene(ctx) {
       panel.material.color.copy(PANEL_OFF).lerp(PANEL_ON, dimK);
       bezel.material.color.copy(BEZEL_OFF).lerp(BEZEL_ON, dimK);
 
+      // 走到台前时把整块控制台抬起来：手机底部被场景坞占着，面板原来正好被压在下面
+      console3d.position.y = PANEL.y + state.deep * 120;
+
       /* 推杆：把手位置跟 thrust */
       leverKnob.position.y = -50 + state.thrust * 100;
       throttleGroup.rotation.z = -state.thrust * 0.12;
