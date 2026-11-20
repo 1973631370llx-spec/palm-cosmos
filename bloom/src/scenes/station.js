@@ -786,6 +786,25 @@ export function createScene(ctx) {
 
     gesture(ev) {
       if (!ev || !ev.type) return;
+      // v7 手语：比出手形停 0.4 秒 → 平台送来 sign 事件（和按钮走同一套动作）
+      if (ev.type === 'sign') {
+        state.signs = (state.signs || 0) + 1;
+        state.lastSign = ev.sign;
+        if (ev.sign === 'thumbUp') {
+          state.target = 1;
+          state.status = '好 · 推进 100%';
+        } else if (ev.sign === 'v') {
+          state.status = '二 · 切换视角';
+          api.toggleView();
+        } else if (ev.sign === 'ily') {
+          state.dock = 1;
+          state.status = '爱你 · 对接，光带张开';
+        } else if (ev.sign === 'ok') {
+          state.lightsOn = !state.lightsOn;
+          state.status = state.lightsOn ? '可以 · 舱内灯已开' : '可以 · 舱内灯已关';
+        }
+        return;
+      }
       if (ev.type === 'pinch' && state.firstPerson && state.hover >= 0) {
         pressButton(buttons[state.hover]);
       } else if (ev.type === 'pinch' && !state.firstPerson) {
@@ -802,6 +821,8 @@ export function createScene(ctx) {
 
     debug() {
       return {
+        signs: state.signs || 0,
+        lastSign: state.lastSign || '',
         firstPerson: state.firstPerson,
         hover: state.hover,
         pinch: !!state.wasPinch,
@@ -814,6 +835,8 @@ export function createScene(ctx) {
         armMode: state.armMode,
         armX: +state.armX.toFixed(2),
         deep: +state.deep.toFixed(2),
+        dock: +state.dock.toFixed(2),
+        scan: +state.scan.toFixed(2),
         lookX: +state.lookX.toFixed(2),
         status: state.status,
       };

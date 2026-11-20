@@ -533,7 +533,8 @@ export function createScene(ctx) {
     drop: 0.16, // 下一次掉礼物的倒计时
     warm: 0, // 手部暖光强度
     shake: 0, // 摇树剩余时间
-    gust: 0, // 雪被震落的余波
+    gust: 0,
+    snowBurst: 0, // 手语 ✌️ 撒雪的额外增速（秒）
     puffLife: 0,
     pinchCool: 0,
     pinchHeld: false,
@@ -731,6 +732,33 @@ export function createScene(ctx) {
     state.statusHold = 2.4;
   }
 
+  /* ── v7 手语动作：三个词就能把「掉礼物 / 灯串 / 雪」全玩一遍 ───────── */
+  /** 🤟 爱你：灯串全开 + 下 8 件礼物（「喜欢就多给点」的直觉） */
+  function signILY() {
+    if (!state.lightsOn) toggleLights();
+    for (let i = 0; i < 8; i += 1) spawnGift(0.1 + i * 0.1);
+    state.gust = 1.2;
+    state.status = '爱你 · 灯串全开，礼物成堆';
+    state.statusHold = 2.8;
+  }
+
+  /** 👌 可以：掉一件特别大的礼物 */
+  function signOK(sizeBias) {
+    spawnGift(0.5);
+    const last = gifts.reduce((a, b) => (b.active && (!a || b.seq > a.seq) ? b : a), null);
+    if (last) last.size = 108; // 一件「大礼」：比平时的 46–74 明显大
+    state.status = '可以 · 收下一件大礼物';
+    state.statusHold = 2.4;
+  }
+
+  /** ✌️ 二：撒一场大雪 */
+  function signV() {
+    state.snowBurst = 1.4;
+    state.gust = 1.8;
+    state.status = '二 · 下雪了';
+    state.statusHold = 2.4;
+  }
+
   const api = {
     camera: () => cam,
 
@@ -783,6 +811,13 @@ export function createScene(ctx) {
       if (!ev || !ev.type) return;
       if (ev.type === 'sweep') {
         doShake();
+      } else if (ev.type === 'sign') {
+        state.signs = (state.signs || 0) + 1;
+        state.lastSign = ev.sign;
+        if (ev.sign === 'thumbUp') doShake();
+        else if (ev.sign === 'ily') signILY();
+        else if (ev.sign === 'ok') signOK();
+        else if (ev.sign === 'v') signV();
       } else if (ev.type === 'pinch') {
         // 捏合只在「指尖确实停在树顶星上」时才算开关，避免在别处捏一下就闪灯。
         // 冷却时间和 update 里的捏合检测共用：同一次捏合会被平台同时送进这两条路，
@@ -819,6 +854,9 @@ export function createScene(ctx) {
         toggles: state.toggles,
         pinchHeld: state.pinchHeld,
         pinchInStar: !!state.pinchInStar,
+        signs: state.signs || 0,
+        lastSign: state.lastSign || '',
+        snowBurst: +(state.snowBurst || 0).toFixed(2),
         status: state.status,
       };
     },
@@ -1086,7 +1124,9 @@ export function createScene(ctx) {
 
       /* ── 雪：越吹越快，摇完慢慢回来 ── */
       state.gust = Math.max(0, state.gust - d * 0.6);
-      const speed = 1 + state.gust * 1.7;
+      // 手语 ✌️「下雪」：额外给一段雪花增速，和 gust 分开算，不然摇树会把它顶掉
+      state.snowBurst = Math.max(0, (state.snowBurst || 0) - d);
+      const speed = 1 + state.gust * 1.7 + state.snowBurst * 2.4;
       const gust = state.gust;
       const sp = snowGeo.attributes.position.array;
       for (let i = 0; i < SNOW; i += 1) {

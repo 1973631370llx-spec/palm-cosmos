@@ -1801,6 +1801,74 @@ body:has(#howto.on) .dock {
 }
 .plat-guide .guide-x:active { background: rgba(255, 241, 230, 0.14); }
 
+/* ── v7：手语栏。玩法是「手怎么动」，手语是「比个手形」，两者分开放，
+   免得一屏塞 8 条读不完。每条：手势图标 + 词 + 这个场景里的效果。 */
+.plat-guide .guide-signs {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 241, 230, 0.12);
+}
+.plat-guide .guide-signs ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 5px;
+}
+.plat-guide .guide-signs li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 0;
+  font-size: 12px;
+}
+.plat-guide .guide-signs li::before { content: none; }
+.plat-guide .sign-icon {
+  font-size: 16px;
+  line-height: 1;
+  width: 20px;
+  text-align: center;
+  flex: none;
+}
+.plat-guide .guide-signs b {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  flex: none;
+}
+.plat-guide .sign-eff {
+  color: rgba(255, 241, 230, 0.62);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 认出手语时的一闪：跟 pose-hud 同一条水平带，不挡画面中心 */
+.sign-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--pad) + 214px);
+  transform: translate(-50%, 6px);
+  padding: 7px 16px;
+  background: rgba(12, 9, 16, 0.82);
+  border: 1px solid rgba(255, 143, 163, 0.45);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+  z-index: 23;
+}
+.sign-toast.is-in {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 /* 推拉圆盘：竖屏手机放右下，拇指够得着；桌面放右下角同位置 */
 .dolly {
   position: absolute;

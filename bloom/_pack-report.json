@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T05:41:45.036Z",
+  "generatedAt": "2026-11-20T10:54:52.259Z",
   "node": "v24.21.0",
   "out": "dist-web",
   "policy": {
@@ -37,24 +37,24 @@
   },
   "totals": {
     "files": 41,
-    "originalBytes": 43690365,
-    "brBytes": 12851015,
-    "gzBytes": 16453197,
+    "originalBytes": 43713528,
+    "brBytes": 12860310,
+    "gzBytes": 16463812,
     "brFilesKept": 38,
     "gzFilesKept": 38,
-    "savedByBr": 30839350,
+    "savedByBr": 30853218,
     "savedPctByBr": 70.6
   },
   "groups": {
     "firstScreen": {
       "name": "first-screen",
       "files": 25,
-      "original": 1649547,
-      "br": 306854,
-      "gz": 383780,
+      "original": 1662946,
+      "br": 311147,
+      "gz": 389144,
       "brFiles": 25,
-      "saved": 1342693,
-      "savedPct": 81.39768069657912,
+      "saved": 1351799,
+      "savedPct": 81.28941047995545,
       "meaning": "首屏关键路径：index.html + src/*.js + three.module.js + addons"
     },
     "heavy": {
@@ -71,34 +71,34 @@
     "rest": {
       "name": "rest",
       "files": 7,
-      "original": 213173,
-      "br": 77196,
-      "gz": 86495,
+      "original": 222937,
+      "br": 82198,
+      "gz": 91746,
       "brFiles": 5,
-      "saved": 135977,
-      "savedPct": 63.7871587865255
+      "saved": 140739,
+      "savedPct": 63.129493982604956
     },
     "all": {
       "name": "all",
       "files": 41,
-      "original": 43690365,
-      "br": 12851015,
-      "gz": 16453197,
+      "original": 43713528,
+      "br": 12860310,
+      "gz": 16463812,
       "brFiles": 38,
-      "saved": 30839350,
-      "savedPct": 70.5861578405216
+      "saved": 30853218,
+      "savedPct": 70.58048025773623
     }
   },
   "files": [
     {
       "path": "index.html",
-      "original": 18230,
-      "br": 4646,
-      "gz": 5696
+      "original": 18707,
+      "br": 4788,
+      "gz": 5903
     },
     {
       "path": "README.md",
-      "original": 19998,
+      "original": 23187,
       "br": null,
       "gz": null
     },
@@ -158,9 +158,9 @@
     },
     {
       "path": "src/main.js",
-      "original": 97491,
-      "br": 26385,
-      "gz": 31732
+      "original": 101509,
+      "br": 27369,
+      "gz": 33145
     },
     {
       "path": "src/perf.js",
@@ -170,15 +170,15 @@
     },
     {
       "path": "src/platform.js",
-      "original": 7564,
-      "br": 2482,
-      "gz": 2994
+      "original": 10101,
+      "br": 3320,
+      "gz": 4032
     },
     {
       "path": "src/poses.js",
-      "original": 10162,
-      "br": 3829,
-      "gz": 4536
+      "original": 16529,
+      "br": 6158,
+      "gz": 7242
     },
     {
       "path": "src/scenes/CONTRACT.md",
@@ -188,21 +188,21 @@
     },
     {
       "path": "src/scenes/cosmos.js",
-      "original": 39765,
-      "br": 11918,
-      "gz": 13970
+      "original": 42092,
+      "br": 12586,
+      "gz": 14786
     },
     {
       "path": "src/scenes/station.js",
-      "original": 43329,
-      "br": 12189,
-      "gz": 14357
+      "original": 44267,
+      "br": 12436,
+      "gz": 14632
     },
     {
       "path": "src/scenes/xmas.js",
-      "original": 43236,
-      "br": 12409,
-      "gz": 14676
+      "original": 44911,
+      "br": 12992,
+      "gz": 15284
     },
     {
       "path": "src/theme.js",
@@ -212,9 +212,9 @@
     },
     {
       "path": "styles/main.css",
-      "original": 45147,
-      "br": 9285,
-      "gz": 11043
+      "original": 46782,
+      "br": 9600,
+      "gz": 11406
     },
     {
       "path": "vendor/mediapipe/hand_landmarker.task",

@@ -736,12 +736,21 @@ export function createScene(ctx) {
   const WARP_MSG = '跃迁 · 加速';
   const ALL_MSG = '整片星域亮了';
 
+  /** 手语回执：单独一条通道，不会被跃迁 / 抚摸的常驻文案盖掉 */
+  function signFlash(text, sec = 2.2) {
+    state.signMsg = text;
+    state.signMsgT = sec;
+  }
+
   function flash(text, sec) {
     state.msg = text;
     state.msgT = sec;
   }
 
   function statusNow() {
+    // 手语回执优先：比完一个词，屏幕上必须先说「这个词做了什么」，
+    // 否则手一直在动、跃迁文案常驻，人根本分不清是自己比出来的还是画面本来就这样
+    if (state.signMsgT > 0) return state.signMsg;
     if (state.warpT > 0.02) return WARP_MSG;
     if (state.msgT > 0) return state.msg;
     if (state.lit >= STAR_N && STAR_N > 0) return ALL_MSG;
@@ -778,9 +787,9 @@ export function createScene(ctx) {
     if (!s.lit) {
       s.lit = true;
       state.lit += 1;
-      flash(state.lit >= STAR_N ? ALL_MSG : starMsg[best], 1.9);
+      signFlash(state.lit >= STAR_N ? ALL_MSG : starMsg[best], 1.9);
     } else {
-      flash(starMsg[best], 1.4);
+      signFlash(starMsg[best], 1.4);
     }
   }
 
@@ -796,7 +805,21 @@ export function createScene(ctx) {
     state.warpCd = 0;
     state.dolly = 0;
     state.firstPerson = false;
-    flash('归位 · 回到掌心', 1.6);
+    signFlash('归位 · 回到掌心');
+  }
+
+  /** 手语 🤟「爱你」：一口气点亮整片星域（一次给满，别让人比两次） */
+  function lightAll() {
+    let fresh = 0;
+    for (const s of mainStars) {
+      if (!s.lit) {
+        s.lit = true;
+        fresh += 1;
+      }
+      s.burst = 1;
+    }
+    state.lit = mainStars.length;
+    signFlash(fresh ? '爱你 · 整片星域亮了' : '爱你 · 星域已经全亮');
   }
 
   /**
@@ -824,6 +847,9 @@ export function createScene(ctx) {
       resetAll();
       state.msg = '';
       state.msgT = 0;
+      // 进场景时的内部复位不该显示成「归位」的回执 —— 那不是用户比出来的
+      state.signMsg = '';
+      state.signMsgT = 0;
       state.parallaxX = 0;
       state.parallaxY = 0;
       state.pinches.clear();
@@ -868,6 +894,30 @@ export function createScene(ctx) {
       if (ev.type === 'sweep') {
         state.sweeps += 1;
         if (triggerWarp()) flash(WARP_MSG, 1.1);
+        return;
+      }
+      // v7 手语：比出手形停 0.4 秒，平台就会送来一条 sign 事件
+      if (ev.type === 'sign') {
+        state.signs = (state.signs || 0) + 1;
+        state.lastSign = ev.sign;
+        if (ev.sign === 'thumbUp') {
+          // 冷却里也要给回执：不然按了没反应，人会以为手势没认出来
+          const ok = triggerWarp();
+          signFlash(ok ? '好 · 跃迁一次' : '好 · 正在跃迁中');
+        } else if (ev.sign === 'ily') {
+          lightAll();
+        } else if (ev.sign === 'point') {
+          // ☝️ 点你手指底下那颗星；认不出手位（比如没摄像头）就退回最近没亮的一颗
+          const tw = state.tipWorld;
+          if (tw) {
+            lightNearest(tw.x, tw.y, tw.z);
+          } else {
+            const next = mainStars.find((s) => !s.lit) || mainStars[0];
+            if (next) lightNearest(next.root.position.x, next.root.position.y, next.root.position.z);
+          }
+        } else if (ev.sign === 'v') {
+          resetAll();
+        }
       }
     },
 
@@ -878,6 +928,8 @@ export function createScene(ctx) {
 
     debug() {
       return {
+        signs: state.signs || 0,
+        lastSign: state.lastSign || '',
         lit: state.lit,
         stars: STAR_N,
         warp: +state.warp.toFixed(2),
@@ -916,6 +968,7 @@ export function createScene(ctx) {
       if (state.warpT > 0) state.warpT = Math.max(0, state.warpT - d);
       if (state.warpCd > 0) state.warpCd = Math.max(0, state.warpCd - d);
       if (state.msgT > 0) state.msgT = Math.max(0, state.msgT - d);
+      if (state.signMsgT > 0) state.signMsgT = Math.max(0, state.signMsgT - d);
       // 跃迁包络：0.12 秒起手，剩下的按 0.75 次方软收尾
       const age = WARP_DUR - state.warpT;
       const warp = state.warpT > 0 ? Math.min(1, age / 0.12) * Math.pow(state.warpT / WARP_DUR, 0.75) : 0;
@@ -974,6 +1027,7 @@ export function createScene(ctx) {
       }
       shared.uGlow.value = state.glow;
       shared.uTip.value.copy(tipWorld);
+      state.tipWorld = hasTip ? { x: tipWorld.x, y: tipWorld.y, z: tipWorld.z } : null;
 
       tipGlow.position.copy(tipWorld);
       tipGlow.material.opacity = state.glow * (0.34 + 0.1 * Math.sin(t * 6.2));
@@ -1045,11 +1099,11 @@ export function createScene(ctx) {
   };
 
   /* 加色层统一压一档：手机竖屏画幅比桌面窄，掌心光 + 光柱 + 星云叠在一起时
-     整片会泛白（实测 4.6% 的像素打到 235 以上，整屏均值 106）。乘 0.72 之后
+     整片会泛白（实测 4.6% 的像素打到 235 以上，整屏均值 106）。乘 0.68 之后
      核球还是最亮的，但夜空的黑留得住 —— 这个场景要的是「黑夜里有光」，不是白雾。 */
   group.traverse((o) => {
     const m = o.material;
-    if (m && m.blending === THREE.AdditiveBlending && m.transparent) m.opacity *= 0.72;
+    if (m && m.blending === THREE.AdditiveBlending && m.transparent) m.opacity *= 0.68;
   });
 
   return api;

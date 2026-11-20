@@ -36,7 +36,7 @@ import { HeartBurst } from './heart.js';
 import { QualityGovernor, TIERS } from './perf.js';
 import { HandTracker, HAND_CONNECTIONS } from './hands.js';
 import { InteractionEngine, detectPinch, SwipeTracker } from './interaction.js';
-import { classifyPose, POSE } from './poses.js';
+import { classifyPose, createSignTracker, POSE, SIGN_VOCAB } from './poses.js';
 import { Flora } from './flower.js';
 import { HandSkeleton } from './handskeleton.js';
 import { Backdrop } from './backdrop.js';
@@ -115,6 +115,9 @@ const el = {
   guideTitle: document.getElementById('guide-title'),
   guideList: document.getElementById('guide-list'),
   guideX: document.getElementById('guide-x'),
+  guideSigns: document.getElementById('guide-signs'),
+  guideSignList: document.getElementById('guide-sign-list'),
+  signToast: document.getElementById('sign-toast'),
   dolly: document.getElementById('dolly'),
   dollyRing: document.getElementById('dolly-ring'),
   dollyDot: document.getElementById('dolly-dot'),
@@ -203,6 +206,11 @@ const platformHost = new PlatformHost({
   quality: 'high',
   dpr: Math.min(window.devicePixelRatio || 1, 2),
 });
+// 认出手语就闪一下提示（花的场景自己也会调，这里只管独立场景）
+platformHost.onSign = (sign) => {
+  state.lastSign = sign;
+  showSignToast(sign);
+};
 
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
@@ -1279,6 +1287,27 @@ function showGuide(id, { sticky = false } = {}) {
     li.textContent = line;
     el.guideList.appendChild(li);
   }
+  // 手语栏：这个词在当前场景干什么，一句一行
+  const signs = platformHost.signs ? platformHost.signs() : [];
+  if (el.guideSigns && el.guideSignList) {
+    el.guideSignList.innerHTML = '';
+    for (const row of signs) {
+      const word = SIGN_VOCAB[row.sign];
+      if (!word) continue;
+      const li = document.createElement('li');
+      const icon = document.createElement('span');
+      icon.className = 'sign-icon';
+      icon.textContent = word.icon;
+      const label = document.createElement('b');
+      label.textContent = word.name;
+      const eff = document.createElement('span');
+      eff.className = 'sign-eff';
+      eff.textContent = row.effect;
+      li.append(icon, label, eff);
+      el.guideSignList.appendChild(li);
+    }
+    el.guideSigns.hidden = signs.length === 0;
+  }
   el.platGuide.hidden = false;
   el.platGuide.classList.add('is-on');
   clearTimeout(guideTimer);
@@ -1381,7 +1410,15 @@ function bindDock() {
   el.dockList.hidden = false;
   if (el.dockBtn) el.dockBtn.setAttribute('aria-expanded', 'true');
   for (const card of el.dockList.querySelectorAll('.dock-card')) {
-    card.addEventListener('click', () => setPlatform(card.dataset.p));
+    card.addEventListener('click', () => {
+      // 点的是当前场景 = 「我忘了怎么玩」：把玩法卡再摊一次，
+      // 否则卡 8 秒收起来之后，人就再也找不到它了（这是 v6 最大的隐形坑）。
+      if (card.dataset.p === plat.id) {
+        showGuide(plat.id, { sticky: true });
+        return;
+      }
+      setPlatform(card.dataset.p);
+    });
   }
   if (el.dockBtn) {
     el.dockBtn.addEventListener('click', () => {
@@ -1450,6 +1487,65 @@ function stabilizePose(hand) {
 
 /** 把「当前手势 + 哪几根手指立着」写进 HUD（DOM 只在需要时改） */
 const hudPose = { name: '', fingers: '', t: 0 };
+/* ── v7 手语：花的场景没有独立 api，所以它自己留一个追踪器 ──────────
+   动作直接走底下的函数（openAll / fireHeart 那些是 window.__bloom 上的方法，
+   在这里既不存在也会撞 TDZ，所以单拎出来三小只）。 */
+function bloomOpenAll(now = performance.now()) {
+  // 连续接近层会立刻把它们压回去，所以先占住时间窗（和 __bloom.openAll 同一套）
+  for (let i = 0; i < 3; i += 1) {
+    prox.hold(i, now, 30);
+    flora.openFlower(i, { now });
+  }
+}
+
+function bloomCloseAll(now = performance.now()) {
+  for (let i = 0; i < 3; i += 1) prox.hold(i, now, 30);
+  flora.closeAll({ now, order: [0, 1, 2], stagger: 0 });
+}
+
+function bloomMotif(shape) {
+  const def = Object.values(POSEMOTIF).find((d) => d.shape === shape) || POSEMOTIF.ok;
+  heartFx.play({ x: STAGE.w * 0.5, y: STAGE.h * 0.45, color: def.color, scale: 0.95, shape });
+  state.motifCount = (state.motifCount || 0) + 1;
+  state.lastMotif = shape;
+  toast(def.toast, 2200);
+}
+
+const signTracker = createSignTracker((sign) => {
+  if (plat.id !== 'bloom') return; // 切到别的场景时，手语由那个场景自己接
+  {
+    if (sign === 'thumbUp') bloomOpenAll();
+    else if (sign === 'ily') tryHeart(performance.now());
+    else if (sign === 'v') bloomMotif('leaf');
+    else if (sign === 'ok') bloomCloseAll();
+  }
+  state.lastSign = sign;
+  state.lastSignAt = performance.now();
+  showSignToast(sign);
+});
+
+/** 屏幕下方一闪而过的「识别到：🤟 爱你」提示 */
+function showSignToast(sign) {
+  const word = SIGN_VOCAB[sign];
+  if (!word || !el.signToast) return;
+  // 只提示「这个场景真的会响应的词」：张开手掌是人的休息姿势，
+  // 要是也弹一条「🖐 停」，人会以为随便摊手就在操作什么。
+  const list = (platformMeta(plat.id)?.signs || []).map((r) => r.sign);
+  if (!list.includes(sign)) return;
+  el.signToast.textContent = word.icon + ' ' + word.name;
+  el.signToast.hidden = false;
+  el.signToast.classList.remove('is-in');
+  void el.signToast.offsetWidth; // 强制重排，让同一个词连着比也能重播动画
+  el.signToast.classList.add('is-in');
+  clearTimeout(showSignToast.t);
+  showSignToast.t = setTimeout(() => {
+    el.signToast.classList.remove('is-in');
+    setTimeout(() => {
+      if (!el.signToast.classList.contains('is-in')) el.signToast.hidden = true;
+    }, 260);
+  }, 1400);
+}
+
 function updatePoseHud(hands, now) {
   const box = el.poseHud;
   if (!box) return;
@@ -1593,6 +1689,7 @@ function tick(now) {
     stabilizePose(h);
   }
   updatePoseHud(hands, now);
+  if (plat.id === 'bloom') signTracker.update(dt, hands);
 
   /* ── v2：靠近就慢慢开 + 第三朵被带着开 ───────────────── */
   updateProximity(hands, now, dt, snap);

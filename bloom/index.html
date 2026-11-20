@@ -109,8 +109,16 @@
         <b id="guide-title">掌心宇宙</b>
       </header>
       <ol id="guide-list"></ol>
+      <!-- v7：手语。比出手形停半秒就等于按了那个键，这一栏把这个「暗号」摊开讲 -->
+      <div class="guide-signs" id="guide-signs" hidden>
+        <span class="guide-k">手语 · 比一下就触发</span>
+        <ul id="guide-sign-list"></ul>
+      </div>
       <button class="guide-x" id="guide-x" type="button">知道啦，开始玩</button>
     </section>
+
+    <!-- v7：认出手语时闪一下「识别到：🤟 爱你」，让人知道系统真的读到了 -->
+    <div class="sign-toast" id="sign-toast" hidden aria-live="polite"></div>
 
     <!-- v6：沉浸式推拉圆盘。手指按住在圆盘上往前抹 = 往前走，往后抹 = 后退 -->
     <div class="dolly" id="dolly" hidden>

@@ -50,6 +50,53 @@ export const POSE = Object.freeze({
 });
 
 /**
+ * v7 手语词汇表。
+ *
+ * 为什么只收这些：手语真正的难点在「运动轨迹 + 位置 + 表情」，摄像头只给 21 个点，
+ * 动态词（谢谢=拇指点两下、你好/再见=挥手）靠单帧认不准，误触发比认不出更难受。
+ * 所以这里只收**手形本身就唯一**的静态词 —— 世界通用的那批「手指字母 / 数字 / 表情手势」，
+ * 每个词指头的伸缩模式都不一样，几何上互斥，认错概率极低：
+ *
+ *   👍 好   …… 只有拇指伸直（ASL 的 10 / 中文手语「好」「对」）
+ *   🤟 爱   …… 拇指+食指+小指（ILY，国际通用「我爱你」）
+ *   🤙 呼叫 …… 拇指+小指（ASL 的 Y / 打电话）
+ *   ✌️ 二   …… 食指+中指（V / 胜利 / 数字 2）
+ *   三      …… 食指+中指+无名指（ASL 的 W / 数字 3）
+ *   👌 可以 …… 拇指食指成环 + 其余三指伸展（OK）
+ *   ☝️ 你   …… 只有食指（指点 / 数字 1）
+ *   🖐 停   …… 五指全开（手掌 / 数字 5）
+ *   ✊ 收   …… 握拳（数字 0 / 收拢）
+ *   L 半    …… 拇指+食指成直角（ASL 字母 L）
+ *
+ * name 是屏幕上给人看的词，hint 是「怎么比」。场景按 id 挂动作。
+ */
+export const SIGN = Object.freeze({
+  THUMB_UP: 'thumbUp',
+  ILY: 'ily',
+  SHAKA: 'shaka',
+  V: 'v',
+  THREE: 'three',
+  OK: 'ok',
+  POINT: 'point',
+  OPEN: 'open',
+  FIST: 'fist',
+});
+
+/** 屏幕文案：icon 用 emoji（手机上自带字形，不依赖字体图标） */
+export const SIGN_VOCAB = Object.freeze({
+  [SIGN.THUMB_UP]: { icon: '👍', name: '好', hint: '只竖大拇指' },
+  [SIGN.ILY]: { icon: '🤟', name: '爱你', hint: '拇指+食指+小指' },
+  [SIGN.SHAKA]: { icon: '🤙', name: '呼叫', hint: '拇指+小指' },
+  [SIGN.V]: { icon: '✌️', name: '二', hint: '食指+中指' },
+  [SIGN.THREE]: { icon: '🖖', name: '三', hint: '食中无名三指' },
+  [SIGN.OK]: { icon: '👌', name: '可以', hint: '拇指食指成环' },
+  [SIGN.POINT]: { icon: '☝️', name: '一', hint: '只伸食指' },
+  [SIGN.OPEN]: { icon: '🖐', name: '停', hint: '五指张开' },
+  [SIGN.FIST]: { icon: '✊', name: '收', hint: '握拳' },
+  [SIGN.L]: { icon: 'ℒ', name: 'L', hint: '拇指食指成直角' },
+});
+
+/**
  * 判定常数。都是「除以 palmSize 之后」的无量纲量，可以按实测安全地调。
  * 每个值后面写的是夹具实测余量（详见测试里的范围表）。
  */
@@ -121,6 +168,7 @@ const pointOk = (p) => !!p && Number.isFinite(p.x) && Number.isFinite(p.y);
 function degraded(size = 0) {
   return {
     pose: POSE.OTHER,
+    sign: null,
     nExt: 0,
     ext: [false, false, false, false, false],
     pinch: false,
@@ -137,7 +185,7 @@ function degraded(size = 0) {
  * @param {{landmarks?:Array<{x:number,y:number,z?:number}>, handedness?:string}} hand
  *   hand.landmarks 必须是舞台像素（见 hands.js landmarksToStage）。handedness 不参与判定。
  * @returns {{
- *   pose: string,            // POSE 之一
+ *   pose: string,            // POSE 之一\n *   sign: string|null,       // SIGN 之一（手语词），认不出为 null
  *   nExt: number,            // 伸直的手指根数 0..5（含拇指，顺序 拇指/食/中/无名/小指）
  *   ext: boolean[],          // 5 项：拇指、食指、中指、无名指、小指
  *   pinch: boolean,          // 拇指尖↔食指尖算「捏住」（已排除握拳）
@@ -209,6 +257,31 @@ export function classifyPose(hand) {
     pose = POSE.POINT;
   }
 
+  // ── 手语词（v7）────────────────────────────────────────────
+  // 只认「手指伸缩模式唯一」的静态手形，因此判定就是查表 + 两条附加几何约束：
+  //   ① 拇指伸直与否已由 ext[0] 给出（靠掌轴侧向距离，握拳时必为 false）；
+  //   ② 「L」和「捏」都只有拇指+食指伸展，用 pinchRatio 分开：
+  //      成环时两指尖几乎重合（<0.22），成直角时张开（>0.35）。
+  const t = ext[0];
+  const i = ext[1];
+  const m = ext[2];
+  const r = ext[3];
+  const p = ext[4];
+  let sign = null;
+  // 捏合是「动作」不是「词」：捏住时不给 sign，免得场景把捏当成点按以外的词
+  if (pinch) sign = null;
+  else if (okRing) sign = SIGN.OK;
+  else if (t && !i && !m && !r && !p) sign = SIGN.THUMB_UP;
+  else if (t && i && !m && !r && p) sign = SIGN.ILY;
+  else if (t && !i && !m && !r && p) sign = SIGN.SHAKA;
+  else if (!t && i && m && !r && !p) sign = SIGN.V;
+  else if (!t && i && m && r && !p) sign = SIGN.THREE;
+  // ☝️ 不收「拇指必须收着」这条：真人指点时拇指多半半开着，收着这条会让「一」认不出来。
+  // 单独的食指已经在前面排除了捏合（pinch 提前返回），所以放宽不会跟别的词撞。
+  else if (i && !m && !r && !p) sign = SIGN.POINT;
+  else if (nExt === 5) sign = SIGN.OPEN;
+  else if (nExt === 0) sign = SIGN.FIST;
+
   // ── 朝向 / 张开度 ───────────────────────────────────────────
   const angle = Math.atan2(
     landmarks[L.PINKY_MCP].y - landmarks[L.INDEX_MCP].y,
@@ -220,7 +293,71 @@ export function classifyPose(hand) {
   const meanRadius = radiusSum / TIPS.length;
   const spread = clamp01((meanRadius - TUNING.SPREAD_MIN) / (TUNING.SPREAD_MAX - TUNING.SPREAD_MIN));
 
-  return { pose, nExt, ext, pinch, pinchRatio, palm, size, angle, spread };
+  return { pose, sign, nExt, ext, pinch, pinchRatio, palm, size, angle, spread };
 }
 
-export default { POSE, TUNING, palmSize, classifyPose };
+/**
+ * v7 手语「稳定保持」判定器（平台和花的场景共用一套，免得两边手感不一样）。
+ *
+ * 一只手比出同一个词、稳定保持 `hold` 秒才算「比出来了」，然后回调一次。
+ * · 为什么要 hold：从张开手换成任何手形，中间必然经过一堆过渡手形
+ *   （收手指的过程中会短暂像「三」、像「L」），单帧触发会乱开特效。
+ * · 为什么 0.4 秒：比手语停住一个手形的自然时长就是 0.3–0.6 秒。
+ * · 一直比着同一个词不重复触发；手形消失后重新计，所以同一个词可以连着用。
+ */
+export function createSignTracker(onSign, { hold = 0.4 } = {}) {
+  // 用**墙上时间**而不是累加 dt：低帧率设备（手机省电模式、SwiftShader 软渲染）
+  // 每帧 dt 会被引擎夹到上限，累加 dt 会让 0.4 秒变成 1.2 秒，
+  // 人就以为「比了没反应」。这里只关心「同一个手形在真实时间里持续了多久」。
+  const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+  let now = null;
+  let since = 0;
+  let fired = null;
+  let missingSince = 0;
+  return {
+    update(dt, hands) {
+      let sign = null;
+      let slot = 0;
+      for (const h of hands || []) {
+        const s = h && h.pose && h.pose.sign;
+        if (s) {
+          sign = s;
+          slot = h.slot || 0;
+          break;
+        }
+      }
+      const t = clock();
+      if (!sign) {
+        now = null;
+        since = 0;
+        // 手形消失超过 0.25 秒才「重新上膛」：真松手能再比一次，
+        // 而识别单帧抖动不会让同一个词连触两次（0.25 秒短于人的反应，长于一帧抖动）。
+        if (!missingSince) missingSince = t;
+        if (t - missingSince > 250) fired = null;
+        return null;
+      }
+      missingSince = 0;
+      if (sign !== now) {
+        now = sign;
+        since = t;
+      }
+      if (t - since < hold * 1000 || fired === sign) return null;
+      fired = sign;
+      if (onSign) onSign(sign, slot);
+      return sign;
+    },
+    /** 正在比、还没到 hold 的词（HUD 可以显示「再稳一下…」） */
+    peek() {
+      const held = now ? Math.max(0, (clock() - since) / 1000) : 0;
+      return { sign: now, held };
+    },
+    reset() {
+      now = null;
+      since = 0;
+      fired = null;
+      missingSince = 0;
+    },
+  };
+}
+
+export default { POSE, SIGN, SIGN_VOCAB, TUNING, palmSize, classifyPose };
