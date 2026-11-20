@@ -919,6 +919,10 @@ export function createScene(ctx) {
           }
           state.hover = hoverIdx;
           state.hoverT = t; // 记时间：手短暂丢失时用宽限保持悬停
+          if (hoverIdx >= 0) {
+            state.hoverKeep = hoverIdx; // 最近一次真的停住的按钮：捏合瞬间抖出去也算按它
+            state.hoverKeepT = t;
+          }
 
           // 抓住推杆区（右侧）→ 手的上下动推杆
           const nearLever = Math.hypot(cursor.position.x - 252, cursor.position.y + 30) < 58;
@@ -1061,8 +1065,15 @@ export function createScene(ctx) {
       const pinchNow = !!(h0 && h0.pinch && h0.pinch.on);
       state.hasHand = !!h0;
       state.poseName = h0 && h0.pose ? h0.pose.pose : '';
-      if (state.firstPerson && pinchNow && !state.wasPinch && state.hover >= 0) {
-        pressButton(buttons[state.hover]);
+      if (state.firstPerson && pinchNow && !state.wasPinch) {
+        // 手在捏合那一瞬间常会抖出按钮圈（识别点跳动），所以取「最近 0.45 秒真的停住过的那个」
+        const target =
+          state.hover >= 0
+            ? state.hover
+            : t - (state.hoverKeepT || -9) < 0.45
+              ? state.hoverKeep
+              : -1;
+        if (target >= 0) pressButton(buttons[target]);
       }
       state.wasPinch = pinchNow;
 

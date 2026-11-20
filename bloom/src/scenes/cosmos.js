@@ -1044,6 +1044,14 @@ export function createScene(ctx) {
     },
   };
 
+  /* 加色层统一压一档：手机竖屏画幅比桌面窄，掌心光 + 光柱 + 星云叠在一起时
+     整片会泛白（实测 4.6% 的像素打到 235 以上，整屏均值 106）。乘 0.72 之后
+     核球还是最亮的，但夜空的黑留得住 —— 这个场景要的是「黑夜里有光」，不是白雾。 */
+  group.traverse((o) => {
+    const m = o.material;
+    if (m && m.blending === THREE.AdditiveBlending && m.transparent) m.opacity *= 0.72;
+  });
+
   return api;
 }
 
