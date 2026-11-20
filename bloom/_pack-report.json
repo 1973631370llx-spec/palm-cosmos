@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T10:54:52.259Z",
+  "generatedAt": "2026-11-20T11:25:39.189Z",
   "node": "v24.21.0",
   "out": "dist-web",
   "policy": {
@@ -37,24 +37,24 @@
   },
   "totals": {
     "files": 41,
-    "originalBytes": 43713528,
-    "brBytes": 12860310,
-    "gzBytes": 16463812,
+    "originalBytes": 43717544,
+    "brBytes": 12862090,
+    "gzBytes": 16465706,
     "brFilesKept": 38,
     "gzFilesKept": 38,
-    "savedByBr": 30853218,
+    "savedByBr": 30855454,
     "savedPctByBr": 70.6
   },
   "groups": {
     "firstScreen": {
       "name": "first-screen",
       "files": 25,
-      "original": 1662946,
-      "br": 311147,
-      "gz": 389144,
+      "original": 1664549,
+      "br": 311467,
+      "gz": 389562,
       "brFiles": 25,
-      "saved": 1351799,
-      "savedPct": 81.28941047995545,
+      "saved": 1353082,
+      "savedPct": 81.28820479301,
       "meaning": "首屏关键路径：index.html + src/*.js + three.module.js + addons"
     },
     "heavy": {
@@ -71,34 +71,34 @@
     "rest": {
       "name": "rest",
       "files": 7,
-      "original": 222937,
-      "br": 82198,
-      "gz": 91746,
+      "original": 225350,
+      "br": 83658,
+      "gz": 93222,
       "brFiles": 5,
-      "saved": 140739,
-      "savedPct": 63.129493982604956
+      "saved": 141692,
+      "savedPct": 62.87641446638562
     },
     "all": {
       "name": "all",
       "files": 41,
-      "original": 43713528,
-      "br": 12860310,
-      "gz": 16463812,
+      "original": 43717544,
+      "br": 12862090,
+      "gz": 16465706,
       "brFiles": 38,
-      "saved": 30853218,
-      "savedPct": 70.58048025773623
+      "saved": 30855454,
+      "savedPct": 70.57911121448176
     }
   },
   "files": [
     {
       "path": "index.html",
-      "original": 18707,
-      "br": 4788,
-      "gz": 5903
+      "original": 19212,
+      "br": 4944,
+      "gz": 6089
     },
     {
       "path": "README.md",
-      "original": 23187,
+      "original": 23751,
       "br": null,
       "gz": null
     },
@@ -158,9 +158,9 @@
     },
     {
       "path": "src/main.js",
-      "original": 101509,
-      "br": 27369,
-      "gz": 33145
+      "original": 102607,
+      "br": 27533,
+      "gz": 33377
     },
     {
       "path": "src/perf.js",
@@ -182,7 +182,7 @@
     },
     {
       "path": "src/scenes/CONTRACT.md",
-      "original": 6064,
+      "original": 6791,
       "br": null,
       "gz": null
     },
@@ -212,9 +212,9 @@
     },
     {
       "path": "styles/main.css",
-      "original": 46782,
-      "br": 9600,
-      "gz": 11406
+      "original": 47904,
+      "br": 9769,
+      "gz": 11591
     },
     {
       "path": "vendor/mediapipe/hand_landmarker.task",

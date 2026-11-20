@@ -1869,6 +1869,45 @@ body:has(#howto.on) .dock {
   transform: translate(-50%, 0);
 }
 
+
+/* ── v7：手语表（放进「怎么玩」大卡底部）────────────────────── */
+.howto-signs {
+  margin: 18px 0 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 241, 230, 0.14);
+}
+.howto-signs .howto-kicker { display: block; margin-bottom: 8px; }
+.howto-sign-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+.howto-sign-list li {
+  display: grid;
+  grid-template-columns: 22px 44px 1fr;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: rgba(255, 241, 230, 0.78);
+}
+.howto-sign-list .sign-icon { font-size: 16px; line-height: 1; text-align: center; }
+.howto-sign-list b { font-size: 13px; font-weight: 500; color: var(--ink); letter-spacing: 0.02em; }
+.howto-sign-list .sign-hint {
+  color: rgba(255, 241, 230, 0.5);
+  font-size: 12px;
+}
+.howto-sign-list .sign-eff { grid-column: 3; }
+.howto-sign-list .sign-hint + .sign-eff { grid-column: 2 / 4; margin-top: -2px; }
+.howto-sign-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 241, 230, 0.5);
+}
+
 /* 推拉圆盘：竖屏手机放右下，拇指够得着；桌面放右下角同位置 */
 .dolly {
   position: absolute;

@@ -161,7 +161,7 @@
           <i>04</i><b>空间站</b><em>STATION</em><span>捏合按控制台 · 推杆</span>
         </button></li>
       </ul>
-      <div class="dock-tray" id="dock-tray" hidden>
+      <div class="dock-tray" id="dock-tray">
         <button class="dock-btn" id="btn-view" type="button" hidden>第三视角</button>
       </div>
       <div class="dock-status" id="dock-status" hidden>
@@ -376,6 +376,13 @@
           </div>
         </li>
       </ul>
+
+      <!-- v7：手语。静态手形当按键用，这里是完整词表 + 当前场景的效果 -->
+      <section class="howto-signs" id="howto-signs" hidden>
+        <span class="howto-kicker">手语 · 比一下就能触发</span>
+        <ul class="howto-sign-list" id="howto-sign-list"></ul>
+        <p class="howto-sign-note">比出手形后停半秒，屏幕下方会闪一下「👍 好」，就说明它认到了。手一直比着不会重复触发，松手再比一次就行。</p>
+      </section>
 
       <footer class="howto-foot">
         <span>没有摄像头？点「无摄像头体验」，用鼠标 / 手指拖拽一样能玩。</span>

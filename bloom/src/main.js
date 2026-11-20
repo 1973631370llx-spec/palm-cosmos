@@ -98,6 +98,8 @@ const el = {
   howto: document.getElementById('howto'),
   howtoBtn: document.getElementById('btn-howto'),
   howtoClose: document.getElementById('btn-howto-close'),
+  howtoSigns: document.getElementById('howto-signs'),
+  howtoSignList: document.getElementById('howto-sign-list'),
   howtoOk: document.getElementById('btn-howto-ok'),
   gateHowto: document.getElementById('btn-gate-howto'),
   stepList: document.getElementById('step-list'),
@@ -1070,8 +1072,34 @@ const tutorial = {
   },
 };
 
-if (el.howtoBtn) el.howtoBtn.addEventListener('click', () => tutorial.show());
-if (el.gateHowto) el.gateHowto.addEventListener('click', () => tutorial.show());
+/** 把当前场景的手语词填进「怎么玩」大卡（v7） */
+function fillHowtoSigns() {
+  if (!el.howtoSigns || !el.howtoSignList) return;
+  const rows = (platformMeta(plat.id)?.signs || []).slice();
+  el.howtoSignList.innerHTML = '';
+  for (const row of rows) {
+    const word = SIGN_VOCAB[row.sign];
+    if (!word) continue;
+    const li = document.createElement('li');
+    const icon = document.createElement('span');
+    icon.className = 'sign-icon';
+    icon.textContent = word.icon;
+    const name = document.createElement('b');
+    name.textContent = word.name;
+    const hint = document.createElement('span');
+    hint.className = 'sign-hint';
+    hint.textContent = word.hint;
+    const eff = document.createElement('span');
+    eff.className = 'sign-eff';
+    eff.textContent = row.effect;
+    li.append(icon, name, hint, eff);
+    el.howtoSignList.appendChild(li);
+  }
+  el.howtoSigns.hidden = rows.length === 0;
+}
+
+if (el.howtoBtn) el.howtoBtn.addEventListener('click', () => { fillHowtoSigns(); tutorial.show(); });
+if (el.gateHowto) el.gateHowto.addEventListener('click', () => { fillHowtoSigns(); tutorial.show(); });
 if (el.howtoClose) el.howtoClose.addEventListener('click', () => tutorial.hide());
 if (el.howtoOk) el.howtoOk.addEventListener('click', () => tutorial.hide());
 if (el.howto) {
