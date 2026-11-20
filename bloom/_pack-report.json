@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T11:25:39.189Z",
+  "generatedAt": "2026-11-20T11:34:04.398Z",
   "node": "v24.21.0",
   "out": "dist-web",
   "policy": {
@@ -37,9 +37,9 @@
   },
   "totals": {
     "files": 41,
-    "originalBytes": 43717544,
-    "brBytes": 12862090,
-    "gzBytes": 16465706,
+    "originalBytes": 43717814,
+    "brBytes": 12862360,
+    "gzBytes": 16465976,
     "brFilesKept": 38,
     "gzFilesKept": 38,
     "savedByBr": 30855454,
@@ -71,22 +71,22 @@
     "rest": {
       "name": "rest",
       "files": 7,
-      "original": 225350,
-      "br": 83658,
-      "gz": 93222,
+      "original": 225620,
+      "br": 83928,
+      "gz": 93492,
       "brFiles": 5,
       "saved": 141692,
-      "savedPct": 62.87641446638562
+      "savedPct": 62.80117010903289
     },
     "all": {
       "name": "all",
       "files": 41,
-      "original": 43717544,
-      "br": 12862090,
-      "gz": 16465706,
+      "original": 43717814,
+      "br": 12862360,
+      "gz": 16465976,
       "brFiles": 38,
       "saved": 30855454,
-      "savedPct": 70.57911121448176
+      "savedPct": 70.57867531985931
     }
   },
   "files": [
@@ -98,7 +98,7 @@
     },
     {
       "path": "README.md",
-      "original": 23751,
+      "original": 24021,
       "br": null,
       "gz": null
     },

@@ -179,6 +179,8 @@ BASE=http://127.0.0.1:4199 node tools/e2e.mjs        # 26 项真浏览器端到�
 BASE=http://127.0.0.1:4199 node tools/v3-check.mjs   # 17 项：姿态 / 横抚 / 捏合 / 抓住转 360°
 BASE=http://127.0.0.1:4199 node tools/ui-check.mjs   # 17 项：怎么玩卡片 + 教练条 + 步骤**
 BASE=http://127.0.0.1:4199 node tools/v2-check.mjs   # 六段数值：靠近慢开 / 第三朵 / 捏 / 换花 / 抓住 / 骨架
+BASE=http://127.0.0.1:4199 node tools/platform-check.mjs  # 23 项：v6 场景坞 / 玩法卡 / 推拉圆盘 / 三个场景各自动作
+BASE=http://127.0.0.1:4199 node tools/sign-check.mjs      # 20 项：v7 手语 —— 四场景 × 四个词，真喂 21 点 landmark
 ```
 
 - 布局 / 排版自检：`node tools/audit.mjs`（8 种视口逐元素量盒子：出屏、互相压、字号 <11px、文字被裁、热区 <44px）
